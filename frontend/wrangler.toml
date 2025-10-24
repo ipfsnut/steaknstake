@@ -2,19 +2,10 @@
 
 name = "steaknstake"
 compatibility_date = "2024-10-24"
+pages_build_output_dir = "out"
 
 [env.production]
 name = "steaknstake-production"
 
 [env.preview] 
 name = "steaknstake-preview"
-
-# Build configuration
-[build]
-command = "npm run build"
-cwd = "frontend"
-destination = "out"
-
-# Pages configuration
-[[pages_build_output_dir]]
-value = "out"

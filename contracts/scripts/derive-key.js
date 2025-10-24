@@ -3,7 +3,7 @@
 const { ethers } = require("hardhat");
 
 async function deriveFromSeedphrase() {
-  const seedphrase = "cost return mother employ response suggest target since inhale draft velvet blanket";
+  const seedphrase = "goose foil creek snack pigeon boring clog insect roof kangaroo animal orange";
   
   // Create wallet from seedphrase
   const wallet = ethers.Wallet.fromPhrase(seedphrase);

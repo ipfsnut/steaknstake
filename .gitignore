@@ -62,6 +62,8 @@ artifacts/
 *.pfx
 **/private-keys/
 **/secrets/
+**/generate-wallet.js
+scripts/generate-wallet.js
 
 # Railway
 .railway/

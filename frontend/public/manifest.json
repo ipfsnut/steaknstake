@@ -1,0 +1,21 @@
+{
+  "name": "SteakNStake",
+  "short_name": "SteakNStake",
+  "description": "Stake $STEAK tokens, earn rewards, and tip your favorite Farcaster creators",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ef4444",
+  "icons": [
+    {
+      "src": "/SteakNStake.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/SteakNStake.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

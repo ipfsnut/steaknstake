@@ -1,0 +1,37 @@
+{
+  "name": "steaknstake-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for SteakNStake - Social Staking meets Farcaster Tipping",
+  "main": "index.js",
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.js --network hardhat",
+    "deploy:base-sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
+    "deploy:base": "hardhat run scripts/deploy.js --network base",
+    "verify": "hardhat verify --network base",
+    "clean": "hardhat clean"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
+    "@openzeppelin/hardhat-upgrades": "^3.0.0",
+    "hardhat": "^2.19.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0",
+    "@openzeppelin/contracts-upgradeable": "^5.0.0",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "solidity",
+    "ethereum",
+    "smart-contracts",
+    "staking",
+    "farcaster",
+    "base",
+    "defi"
+  ],
+  "author": "SteakNStake Team",
+  "license": "MIT"
+}

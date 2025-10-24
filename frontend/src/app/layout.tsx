@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { WalletProvider } from '@/components/WalletProvider';
+import { FarcasterGate } from '@/components/FarcasterGate';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://steak.epicdylan.com'),
@@ -45,7 +47,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <WalletProvider>
+          <FarcasterGate>
+            {children}
+          </FarcasterGate>
+        </WalletProvider>
       </body>
     </html>
   );

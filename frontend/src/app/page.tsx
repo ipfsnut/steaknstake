@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { stakingApi, tippingApi } from '@/lib/api';
+import { useWalletConnection } from '@/hooks/useWalletConnection';
 
 interface StakingStats {
   totalStakers: number;
@@ -49,7 +50,6 @@ export default function HomePage() {
   const [tippingStats, setTippingStats] = useState<TippingStats | null>(null);
   const [topStakers, setTopStakers] = useState<TopStaker[]>([]);
   const [userPosition, setUserPosition] = useState<UserPosition | null>(null);
-  const [walletAddress, setWalletAddress] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [showHelp, setShowHelp] = useState(false);
   const [showStakeHelp, setShowStakeHelp] = useState(false);
@@ -57,18 +57,26 @@ export default function HomePage() {
   const [showClaimHelp, setShowClaimHelp] = useState(false);
   const [showStatsHelp, setShowStatsHelp] = useState(false);
 
-  // Mock wallet connection - replace with real wallet integration
+  // Use real wallet connection
+  const { 
+    walletAddress, 
+    farcasterProfile, 
+    isFullyConnected,
+    connectBoth,
+    disconnectAll,
+    isFarcasterLoading 
+  } = useWalletConnection();
+
   const connectWallet = async () => {
     try {
-      // Placeholder for wallet connection logic
-      // This would integrate with Farcaster mini-app wallet or MetaMask
-      const mockAddress = '0x1234567890123456789012345678901234567890';
-      setWalletAddress(mockAddress);
+      await connectBoth();
       
-      // Fetch user position from backend
-      const positionResponse = await stakingApi.getPosition(mockAddress);
-      if (positionResponse.data.success) {
-        setUserPosition(positionResponse.data.data);
+      // Fetch user position from backend after connection
+      if (walletAddress) {
+        const positionResponse = await stakingApi.getPosition(walletAddress);
+        if (positionResponse.data.success) {
+          setUserPosition(positionResponse.data.data);
+        }
       }
     } catch (error) {
       console.error('Error connecting wallet:', error);

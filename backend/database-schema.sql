@@ -94,8 +94,8 @@ INSERT INTO system_settings (setting_key, setting_value) VALUES
 ('min_stake_amount', '1'),
 ('min_tip_amount', '0.1'),
 ('max_tip_amount', '1000'),
-('steak_token_address', ''), -- STEAK token contract address (to be filled after Clanker deployment)
-('steaknstake_contract_address', ''), -- SteakNStake contract address (to be filled after deployment)
+('steak_token_address', '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07'), -- STEAK token contract address
+('steaknstake_contract_address', '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'), -- SteakNStake contract address
 ('chain_id', '8453'), -- Base network chain ID
 ('farcaster_bot_fid', '1401302'), -- Farcaster bot FID
 ('farcaster_bot_username', 'steaknstake') -- Farcaster bot username

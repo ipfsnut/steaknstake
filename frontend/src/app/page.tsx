@@ -165,6 +165,70 @@ export default function HomePage() {
     }
   };
 
+  const handleUnstake = async (amount: number) => {
+    if (!walletAddress) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    try {
+      // This would integrate with the smart contract
+      const unstakeResponse = await stakingApi.unstake({
+        walletAddress,
+        amount,
+      });
+
+      if (unstakeResponse.data.success) {
+        // Refresh user position
+        const positionResponse = await stakingApi.getPosition(walletAddress);
+        if (positionResponse.data.success) {
+          setUserPosition(positionResponse.data.data);
+        }
+        alert('Unstake successful!');
+      }
+    } catch (error) {
+      console.error('Error unstaking:', error);
+      alert('Error unstaking tokens');
+    }
+  };
+
+  const refreshData = async () => {
+    try {
+      setLoading(true);
+      
+      // Refresh all data
+      const [stakingResponse, tippingResponse, leaderboardResponse] = await Promise.all([
+        stakingApi.getStats(),
+        tippingApi.getStats(),
+        stakingApi.getLeaderboard(5)
+      ]);
+
+      if (stakingResponse.data.success) {
+        setStakingStats(stakingResponse.data.data);
+      }
+      
+      if (tippingResponse.data.success) {
+        setTippingStats(tippingResponse.data.data);
+      }
+      
+      if (leaderboardResponse.data.success) {
+        setTopStakers(leaderboardResponse.data.data.leaderboard);
+      }
+
+      // Refresh user position if connected
+      if (walletAddress) {
+        const positionResponse = await stakingApi.getPosition(walletAddress);
+        if (positionResponse.data.success) {
+          setUserPosition(positionResponse.data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const renderContent = () => {
     switch (activeSection) {
       case 'stake':
@@ -216,7 +280,16 @@ export default function HomePage() {
             ) : (
               <>
                 <div className="bg-white rounded-xl p-6 border mb-6">
-                  <h3 className="text-xl font-bold mb-4">Your Position</h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold">Your Position</h3>
+                    <button 
+                      onClick={refreshData}
+                      className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1 rounded-md"
+                      title="Refresh data"
+                    >
+                      🔄 Refresh
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
                       <div className="text-2xl font-bold text-green-600">{userPosition?.stakedAmount || 0}</div>
@@ -232,7 +305,10 @@ export default function HomePage() {
                 <div className="bg-white rounded-xl p-6 border mb-6">
                   <h3 className="text-xl font-bold mb-4">Step 1: Buy $STEAK</h3>
                   <p className="text-gray-600 mb-4">Get $STEAK tokens to start earning rewards.</p>
-                  <button className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium w-full">
+                  <button 
+                    onClick={() => window.open('https://app.uniswap.org/', '_blank')}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium w-full"
+                  >
                     Buy $STEAK on Uniswap
                   </button>
                 </div>
@@ -241,12 +317,23 @@ export default function HomePage() {
                   <h3 className="text-xl font-bold mb-4">Step 2: Stake Tokens</h3>
                   <p className="text-gray-600 mb-4">Stake your $STEAK to start earning daily allowances.</p>
                   <div className="space-y-4">
-                    <input 
-                      type="number" 
-                      placeholder="Amount to stake"
-                      className="w-full p-3 border rounded-lg"
-                      id="stakeAmount"
-                    />
+                    <div className="relative">
+                      <input 
+                        type="number" 
+                        placeholder="Amount to stake"
+                        className="w-full p-3 border rounded-lg pr-16"
+                        id="stakeAmount"
+                      />
+                      <button 
+                        onClick={() => {
+                          const input = document.getElementById('stakeAmount') as HTMLInputElement;
+                          if (input) input.value = '1000'; // Default max amount, replace with actual balance
+                        }}
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded"
+                      >
+                        MAX
+                      </button>
+                    </div>
                     <button 
                       onClick={() => {
                         const amount = parseFloat((document.getElementById('stakeAmount') as HTMLInputElement)?.value || '0');
@@ -258,6 +345,41 @@ export default function HomePage() {
                     </button>
                   </div>
                 </div>
+
+                {userPosition && userPosition.stakedAmount > 0 && (
+                  <div className="bg-white rounded-xl p-6 border mb-6">
+                    <h3 className="text-xl font-bold mb-4">Unstake Tokens</h3>
+                    <p className="text-gray-600 mb-4">Withdraw your staked $STEAK tokens (keeps your earned allowances).</p>
+                    <div className="space-y-4">
+                      <input 
+                        type="number" 
+                        placeholder="Amount to unstake"
+                        max={userPosition.stakedAmount}
+                        className="w-full p-3 border rounded-lg"
+                        id="unstakeAmount"
+                      />
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => {
+                            const amount = parseFloat((document.getElementById('unstakeAmount') as HTMLInputElement)?.value || '0');
+                            if (amount > 0) handleUnstake(amount);
+                          }}
+                          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex-1"
+                        >
+                          Unstake $STEAK
+                        </button>
+                        <button 
+                          onClick={() => {
+                            if (userPosition.stakedAmount > 0) handleUnstake(userPosition.stakedAmount);
+                          }}
+                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-medium"
+                        >
+                          Unstake All
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
 

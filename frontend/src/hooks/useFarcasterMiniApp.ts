@@ -10,24 +10,34 @@ export function useFarcasterMiniApp() {
 
   useEffect(() => {
     const initializeMiniApp = async () => {
+      console.log('🚀 Initializing Farcaster miniapp...')
+      
       try {
-        // Check if we're in a Farcaster context
+        console.log('📱 Checking SDK context...')
         const context = await sdk.context
+        console.log('🔍 SDK context result:', context)
+        
         setIsMiniApp(!!context)
         
         if (context) {
+          console.log('✅ In Farcaster context! User:', context.user)
           setUser(context.user)
           
           // Call ready() to hide splash screen and show content
+          console.log('📞 Calling sdk.actions.ready()...')
           await sdk.actions.ready()
+          console.log('✅ Ready callback completed!')
           setIsReady(true)
         } else {
+          console.log('❌ Not in Farcaster context, running as regular web app')
           // Not in miniapp context, still set ready for regular web
           setIsReady(true)
         }
       } catch (error) {
-        console.error('Failed to initialize Farcaster miniapp:', error)
+        console.error('💥 Failed to initialize Farcaster miniapp:', error)
+        console.error('Error details:', error.message)
         // Fallback: set ready anyway
+        console.log('🔄 Setting ready as fallback...')
         setIsReady(true)
       }
     }

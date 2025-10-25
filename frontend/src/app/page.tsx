@@ -71,6 +71,11 @@ export default function HomePage() {
   // Use Farcaster miniapp integration
   const { isReady, isMiniApp, user, openUrl } = useFarcasterMiniApp();
 
+  // Debug logging for miniapp state
+  useEffect(() => {
+    console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp, 'user:', user);
+  }, [isReady, isMiniApp, user]);
+
   const connectWallet = async () => {
     try {
       await connectBoth();
@@ -188,7 +193,7 @@ export default function HomePage() {
               </div>
             )}
             
-            {!walletAddress ? (
+            {!walletAddress && !isMiniApp ? (
               <div className="bg-white rounded-xl p-6 border mb-6 text-center">
                 <h3 className="text-xl font-bold mb-4">Connect Your Wallet</h3>
                 <p className="text-gray-600 mb-4">Connect your Farcaster wallet to start staking.</p>
@@ -198,6 +203,15 @@ export default function HomePage() {
                 >
                   Connect Farcaster Wallet
                 </button>
+              </div>
+            ) : isMiniApp && user ? (
+              <div className="bg-green-50 rounded-xl p-6 border mb-6 text-center">
+                <h3 className="text-xl font-bold mb-4">Welcome @{user.username}!</h3>
+                <p className="text-gray-600 mb-4">You're connected via Farcaster</p>
+                <div className="text-sm text-green-700">
+                  <p>🎯 Farcaster ID: {user.fid}</p>
+                  <p>💰 Ready to stake and tip!</p>
+                </div>
               </div>
             ) : (
               <>

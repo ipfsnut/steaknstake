@@ -15,28 +15,37 @@ export function useStaking() {
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Check allowance for SteakNStake contract
+  // Check allowance for SteakNStake contract - skip in Farcaster context if no address
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
     abi: ERC20_ABI,
     functionName: 'allowance',
     args: address && CONTRACTS.STEAKNSTAKE ? [address, CONTRACTS.STEAKNSTAKE as `0x${string}`] : undefined,
+    query: {
+      enabled: !isFarcasterContext || !!address // Only run if not Farcaster context OR we have an address
+    }
   });
 
-  // Check user's STEAK balance
+  // Check user's STEAK balance - skip in Farcaster context if no address
   const { data: balance, refetch: refetchBalance } = useReadContract({
     address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
+    query: {
+      enabled: !isFarcasterContext || !!address // Only run if not Farcaster context OR we have an address
+    }
   });
 
-  // Check user's staked amount
+  // Check user's staked amount - skip in Farcaster context if no address
   const { data: stakedAmount, refetch: refetchStaked } = useReadContract({
     address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
     abi: STEAKNSTAKE_ABI,
     functionName: 'stakedAmounts',
     args: address ? [address] : undefined,
+    query: {
+      enabled: !isFarcasterContext || !!address // Only run if not Farcaster context OR we have an address
+    }
   });
 
   // Wait for transaction confirmation

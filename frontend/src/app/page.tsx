@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { stakingApi, tippingApi } from '@/lib/api';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
+import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
 
 interface StakingStats {
   totalStakers: number;
@@ -66,6 +67,9 @@ export default function HomePage() {
     disconnectAll,
     isFarcasterLoading 
   } = useWalletConnection();
+
+  // Use Farcaster miniapp integration
+  const { isReady, isMiniApp, user, openUrl } = useFarcasterMiniApp();
 
   const connectWallet = async () => {
     try {
@@ -541,6 +545,23 @@ export default function HomePage() {
         );
     }
   };
+
+  // Show loading screen until miniapp is ready
+  if (!isReady) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-500 rounded-xl flex items-center justify-center mx-auto mb-4">
+            <span className="text-white text-2xl">🥩</span>
+          </div>
+          <p className="text-gray-600">Loading SteakNStake...</p>
+          {isMiniApp && user && (
+            <p className="text-sm text-gray-500 mt-2">Welcome, @{user.username}!</p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

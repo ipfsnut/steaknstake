@@ -1,8 +1,8 @@
 // Contract addresses and ABIs for SteakNStake
 export const CONTRACTS = {
   // Real deployed contract addresses on Base mainnet
-  STEAK_TOKEN: '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07', // Your STEAK token
-  STEAKNSTAKE: '0x9900fbFfc6bbb6c082aC0488040fB88dd00c1622', // Your deployed SteakNStake contract
+  STEAK_TOKEN: process.env.NEXT_PUBLIC_STEAK_TOKEN_ADDRESS || '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07', // Your STEAK token
+  STEAKNSTAKE: process.env.NEXT_PUBLIC_STEAKNSTAKE_CONTRACT_ADDRESS || '0x9900fbFfc6bbb6c082aC0488040fB88dd00c1622', // Your deployed SteakNStake contract
 } as const;
 
 // ERC20 ABI for approvals

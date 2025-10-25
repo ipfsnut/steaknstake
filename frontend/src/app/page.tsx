@@ -89,15 +89,41 @@ export default function HomePage() {
   // $STEAK token contract address
   const STEAK_TOKEN_ADDRESS = '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
 
-  const handleSwapForSteak = () => {
-    const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
-    
-    if (isMiniApp && openUrl) {
-      // Use Farcaster's native functionality - opens in-app browser
-      console.log('🔄 Opening swap in Farcaster miniapp:', swapUrl);
-      openUrl(swapUrl);
+  const handleSwapForSteak = async () => {
+    if (isMiniApp && sdk) {
+      try {
+        console.log('🔄 Opening Farcaster native swap widget for STEAK...');
+        
+        // Use Farcaster's native swap widget with STEAK token pre-filled
+        const result = await sdk.actions.swapToken({
+          buyToken: `eip155:8453/erc20:${STEAK_TOKEN_ADDRESS}`, // Base network STEAK token
+          // Let user choose what to sell (don't pre-fill sellToken)
+          // sellAmount is optional - let user decide amount
+        });
+        
+        if (result.isError) {
+          console.error('Swap failed:', result.error);
+          if (result.error.reason === 'rejected_by_user') {
+            console.log('User cancelled the swap');
+          } else {
+            console.error('Swap error:', result.error.reason);
+          }
+        } else {
+          console.log('Swap initiated successfully:', result);
+        }
+      } catch (err) {
+        console.error('Failed to open Farcaster swap widget:', err);
+        
+        // Fallback to external swap if native widget fails
+        const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
+        console.log('🌐 Falling back to external swap:', swapUrl);
+        if (openUrl) {
+          openUrl(swapUrl);
+        }
+      }
     } else {
-      // Fallback to regular browser
+      // Fallback for non-miniapp context
+      const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
       console.log('🌐 Opening swap in regular browser:', swapUrl);
       window.open(swapUrl, '_blank');
     }

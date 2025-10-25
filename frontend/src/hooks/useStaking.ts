@@ -4,10 +4,12 @@ import { useState, useEffect } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { CONTRACTS, ERC20_ABI, STEAKNSTAKE_ABI } from '@/lib/contracts';
+import { useFarcasterWallet } from './useFarcasterWallet';
 
 export function useStaking() {
   const { address } = useAccount();
   const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { isFarcasterContext, isWalletConnected, connectFarcasterWallet } = useFarcasterWallet();
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -66,11 +68,34 @@ export function useStaking() {
   }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked]);
 
   const approveSteak = async (amount: string) => {
-    if (!address) return;
+    // Handle Farcaster context wallet connection
+    if (!address) {
+      if (isFarcasterContext) {
+        console.log('🔌 Connecting Farcaster wallet for approval...');
+        const connected = await connectFarcasterWallet();
+        if (!connected) {
+          console.error('Failed to connect Farcaster wallet');
+          return;
+        }
+        // Wait a moment for connection to establish
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } else {
+        console.error('No wallet address available');
+        return;
+      }
+    }
 
     try {
       setIsProcessing(true);
       const amountWei = parseEther(amount);
+      
+      console.log('💰 Approving STEAK tokens:', {
+        amount,
+        amountWei: amountWei.toString(),
+        tokenAddress: CONTRACTS.STEAK_TOKEN,
+        spenderAddress: CONTRACTS.STEAKNSTAKE,
+        userAddress: address
+      });
       
       writeContract({
         address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
@@ -85,11 +110,33 @@ export function useStaking() {
   };
 
   const stakeTokens = async (amount: string) => {
-    if (!address) return;
+    // Handle Farcaster context wallet connection
+    if (!address) {
+      if (isFarcasterContext) {
+        console.log('🔌 Connecting Farcaster wallet for staking...');
+        const connected = await connectFarcasterWallet();
+        if (!connected) {
+          console.error('Failed to connect Farcaster wallet');
+          return;
+        }
+        // Wait a moment for connection to establish
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } else {
+        console.error('No wallet address available');
+        return;
+      }
+    }
 
     try {
       setIsProcessing(true);
       const amountWei = parseEther(amount);
+      
+      console.log('🥩 Staking STEAK tokens:', {
+        amount,
+        amountWei: amountWei.toString(),
+        contractAddress: CONTRACTS.STEAKNSTAKE,
+        userAddress: address
+      });
       
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,

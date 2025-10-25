@@ -3,13 +3,23 @@
 import { useConnect, useAccount, useDisconnect } from 'wagmi'
 import { useSignIn, useProfile } from '@farcaster/auth-kit'
 import { useState, useEffect } from 'react'
+import { useFarcasterWallet } from './useFarcasterWallet'
 
 export function useWalletConnection() {
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
   
-  // Farcaster auth
+  // Farcaster wallet integration for miniapp context
+  const { 
+    isFarcasterContext, 
+    isWalletConnected: isFarcasterWalletConnected, 
+    connectFarcasterWallet,
+    disconnectFarcasterWallet,
+    farcasterUser
+  } = useFarcasterWallet()
+  
+  // Farcaster auth (for non-miniapp context)
   const { signIn, isSuccess: isFarcasterSignedIn, isError: isFarcasterError } = useSignIn({
     nonce: crypto.randomUUID(),
     notBefore: new Date().toISOString(),
@@ -37,13 +47,23 @@ export function useWalletConnection() {
 
   const connectWallet = async () => {
     try {
-      // First try to connect a wallet
-      const injectedConnector = connectors.find(c => c.id === 'injected')
-      if (injectedConnector) {
-        await connect({ connector: injectedConnector })
+      // Use Farcaster wallet connection in miniapp context
+      if (isFarcasterContext) {
+        console.log('🔌 Using Farcaster wallet connection...')
+        return await connectFarcasterWallet()
+      } else {
+        // Regular wallet connection for web
+        console.log('🔌 Using regular wallet connection...')
+        const injectedConnector = connectors.find(c => c.id === 'injected')
+        if (injectedConnector) {
+          await connect({ connector: injectedConnector })
+          return true
+        }
+        return false
       }
     } catch (error) {
       console.error('Error connecting wallet:', error)
+      return false
     }
   }
 
@@ -70,20 +90,27 @@ export function useWalletConnection() {
   }
 
   const disconnectAll = () => {
-    disconnect()
+    if (isFarcasterContext) {
+      disconnectFarcasterWallet()
+    } else {
+      disconnect()
+    }
     // Farcaster disconnect is handled automatically
     setFarcasterProfile(null)
   }
 
   return {
-    // Wallet state
+    // Wallet state (unified for both contexts)
     walletAddress,
-    isWalletConnected: isConnected,
+    isWalletConnected: isFarcasterContext ? isFarcasterWalletConnected : isConnected,
     
     // Farcaster state
-    farcasterProfile,
-    isFarcasterSignedIn,
+    farcasterProfile: isFarcasterContext ? farcasterUser : profile,
+    isFarcasterSignedIn: isFarcasterContext ? !!farcasterUser : isFarcasterSignedIn,
     isFarcasterLoading,
+    
+    // Context detection
+    isFarcasterContext,
     
     // Connection functions
     connectWallet,
@@ -92,6 +119,8 @@ export function useWalletConnection() {
     disconnectAll,
     
     // Combined state
-    isFullyConnected: isConnected && isFarcasterSignedIn,
+    isFullyConnected: isFarcasterContext 
+      ? isFarcasterWalletConnected && !!farcasterUser
+      : isConnected && isFarcasterSignedIn,
   }
 }

@@ -35,7 +35,7 @@ export function useFarcasterMiniApp() {
         }
       } catch (error) {
         console.error('💥 Failed to initialize Farcaster miniapp:', error)
-        console.error('Error details:', error.message)
+        console.error('Error details:', error instanceof Error ? error.message : String(error))
         // Fallback: set ready anyway
         console.log('🔄 Setting ready as fallback...')
         setIsReady(true)

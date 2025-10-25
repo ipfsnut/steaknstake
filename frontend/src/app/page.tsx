@@ -193,7 +193,16 @@ export default function HomePage() {
               </div>
             )}
             
-            {!walletAddress && !isMiniApp ? (
+            {isMiniApp && user ? (
+              <div className="bg-green-50 rounded-xl p-6 border mb-6 text-center">
+                <h3 className="text-xl font-bold mb-4">Welcome @{user.username}!</h3>
+                <p className="text-gray-600 mb-4">You're connected via Farcaster</p>
+                <div className="text-sm text-green-700">
+                  <p>🎯 Farcaster ID: {user.fid}</p>
+                  <p>💰 Ready to stake and tip!</p>
+                </div>
+              </div>
+            ) : !walletAddress ? (
               <div className="bg-white rounded-xl p-6 border mb-6 text-center">
                 <h3 className="text-xl font-bold mb-4">Connect Your Wallet</h3>
                 <p className="text-gray-600 mb-4">Connect your Farcaster wallet to start staking.</p>
@@ -203,15 +212,6 @@ export default function HomePage() {
                 >
                   Connect Farcaster Wallet
                 </button>
-              </div>
-            ) : isMiniApp && user ? (
-              <div className="bg-green-50 rounded-xl p-6 border mb-6 text-center">
-                <h3 className="text-xl font-bold mb-4">Welcome @{user.username}!</h3>
-                <p className="text-gray-600 mb-4">You're connected via Farcaster</p>
-                <div className="text-sm text-green-700">
-                  <p>🎯 Farcaster ID: {user.fid}</p>
-                  <p>💰 Ready to stake and tip!</p>
-                </div>
               </div>
             ) : (
               <>
@@ -302,7 +302,7 @@ export default function HomePage() {
                   {userPosition?.availableTipBalance?.toFixed(2) || '0.00'}
                 </div>
                 <div className="text-gray-500">$STEAK available to tip</div>
-                {!walletAddress && (
+                {!walletAddress && !isMiniApp && (
                   <button 
                     onClick={connectWallet}
                     className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm"
@@ -369,9 +369,9 @@ export default function HomePage() {
               <div className="text-center py-8">
                 <div className="text-4xl mb-4">💝</div>
                 <p className="text-gray-500">
-                  {walletAddress ? 'No pending tips' : 'Connect wallet to see pending tips'}
+                  {walletAddress || (isMiniApp && user) ? 'No pending tips' : 'Connect wallet to see pending tips'}
                 </p>
-                {!walletAddress && (
+                {!walletAddress && !isMiniApp && (
                   <button 
                     onClick={connectWallet}
                     className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
@@ -628,7 +628,8 @@ export default function HomePage() {
                 onClick={connectWallet}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium"
               >
-                {walletAddress ? `${formatAddress(walletAddress)}` : 'Connect Wallet'}
+                {walletAddress ? `${formatAddress(walletAddress)}` : 
+                 (isMiniApp && user) ? `@${user.username}` : 'Connect Wallet'}
               </button>
             </nav>
             

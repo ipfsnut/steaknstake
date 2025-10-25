@@ -10,7 +10,11 @@ export function useWalletConnection() {
   const { disconnect } = useDisconnect()
   
   // Farcaster auth
-  const { signIn, isSuccess: isFarcasterSignedIn, isError: isFarcasterError } = useSignIn()
+  const { signIn, isSuccess: isFarcasterSignedIn, isError: isFarcasterError } = useSignIn({
+    nonce: crypto.randomUUID(),
+    notBefore: new Date().toISOString(),
+    expirationTime: new Date(Date.now() + 60000).toISOString(),
+  })
   const { profile } = useProfile()
   const [isFarcasterLoading, setIsFarcasterLoading] = useState(false)
   

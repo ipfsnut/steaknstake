@@ -70,7 +70,7 @@ export default function HomePage() {
   } = useWalletConnection();
 
   // Use Farcaster miniapp integration
-  const { isReady, isMiniApp, user, openUrl } = useFarcasterMiniApp();
+  const { isReady, isMiniApp, user, openUrl, sdk } = useFarcasterMiniApp();
 
   // Use staking contract integration
   const {
@@ -101,15 +101,10 @@ export default function HomePage() {
           // sellAmount is optional - let user decide amount
         });
         
-        if (result.isError) {
-          console.error('Swap failed:', result.error);
-          if (result.error.reason === 'rejected_by_user') {
-            console.log('User cancelled the swap');
-          } else {
-            console.error('Swap error:', result.error.reason);
-          }
-        } else {
+        if (result.success) {
           console.log('Swap initiated successfully:', result);
+        } else {
+          console.error('Swap failed:', result);
         }
       } catch (err) {
         console.error('Failed to open Farcaster swap widget:', err);

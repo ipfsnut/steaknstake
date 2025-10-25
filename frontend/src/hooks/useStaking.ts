@@ -142,12 +142,42 @@ export function useStaking() {
           });
           
           console.log('✅ Farcaster approval transaction submitted:', txHash);
-          // Wait a bit then refetch data
-          setTimeout(() => {
+          
+          // Wait for transaction confirmation
+          const waitForConfirmation = async () => {
+            let attempts = 0;
+            const maxAttempts = 30; // 30 seconds max
+            
+            while (attempts < maxAttempts) {
+              try {
+                const receipt = await provider.request({
+                  method: 'eth_getTransactionReceipt',
+                  params: [txHash]
+                });
+                
+                if (receipt && receipt.status) {
+                  console.log('✅ Transaction confirmed:', receipt);
+                  refetchAllowance();
+                  refetchBalance();
+                  setIsProcessing(false);
+                  return;
+                }
+              } catch (receiptError) {
+                console.log('⏳ Waiting for confirmation...', attempts);
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+              attempts++;
+            }
+            
+            // Timeout - still try to refetch data
+            console.log('⚠️ Transaction confirmation timeout, but transaction may have succeeded');
             refetchAllowance();
             refetchBalance();
             setIsProcessing(false);
-          }, 2000);
+          };
+          
+          waitForConfirmation();
         } catch (sdkError) {
           console.error('❌ Farcaster wallet provider error:', sdkError);
           setIsProcessing(false);
@@ -218,13 +248,44 @@ export function useStaking() {
           });
           
           console.log('✅ Farcaster stake transaction submitted:', txHash);
-          // Wait a bit then refetch data
-          setTimeout(() => {
+          
+          // Wait for transaction confirmation
+          const waitForConfirmation = async () => {
+            let attempts = 0;
+            const maxAttempts = 30; // 30 seconds max
+            
+            while (attempts < maxAttempts) {
+              try {
+                const receipt = await provider.request({
+                  method: 'eth_getTransactionReceipt',
+                  params: [txHash]
+                });
+                
+                if (receipt && receipt.status) {
+                  console.log('✅ Transaction confirmed:', receipt);
+                  refetchAllowance();
+                  refetchBalance();
+                  refetchStaked();
+                  setIsProcessing(false);
+                  return;
+                }
+              } catch (receiptError) {
+                console.log('⏳ Waiting for confirmation...', attempts);
+              }
+              
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+              attempts++;
+            }
+            
+            // Timeout - still try to refetch data
+            console.log('⚠️ Transaction confirmation timeout, but transaction may have succeeded');
             refetchAllowance();
             refetchBalance();
             refetchStaked();
             setIsProcessing(false);
-          }, 2000);
+          };
+          
+          waitForConfirmation();
         } catch (sdkError) {
           console.error('❌ Farcaster wallet provider error:', sdkError);
           setIsProcessing(false);

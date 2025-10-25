@@ -31,7 +31,7 @@ export function useStaking() {
   const { data: stakedAmount, refetch: refetchStaked } = useReadContract({
     address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
     abi: STEAKNSTAKE_ABI,
-    functionName: 'stakes',
+    functionName: 'stakedAmounts',
     args: address ? [address] : undefined,
   });
 

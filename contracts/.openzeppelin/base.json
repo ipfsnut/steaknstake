@@ -1,0 +1,259 @@
+{
+  "manifestVersion": "3.2",
+  "proxies": [
+    {
+      "address": "0x9900fbFfc6bbb6c082aC0488040fB88dd00c1622",
+      "txHash": "0x6732f58979ea10e203bc804b2a0ffa87becc6026d43053934e7b0acca0464549",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "52c960925d7f681777782ac8c6007f9293b5f274460103dd2823dd52183380be": {
+      "address": "0x19663f3a30537a9e6aa05A32A5A91BB50428b4D7",
+      "txHash": "0xd81abbc5ce0edc84348351437cad37dd225fc6adb420785eea78d04fbe1e691e",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "label": "steakToken",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_contract(IERC20)965",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:29"
+          },
+          {
+            "label": "backendWallet",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:30"
+          },
+          {
+            "label": "stakedAmounts",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:33"
+          },
+          {
+            "label": "stakeTimestamps",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:34"
+          },
+          {
+            "label": "totalStaked",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_uint256",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:35"
+          },
+          {
+            "label": "minimumStake",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_uint256",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:36"
+          },
+          {
+            "label": "allocatedTips",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:39"
+          },
+          {
+            "label": "claimedTips",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:40"
+          },
+          {
+            "label": "totalAllocated",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_uint256",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:41"
+          },
+          {
+            "label": "totalClaimed",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_uint256",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:42"
+          },
+          {
+            "label": "authorized",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_mapping(t_address,t_bool)",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:45"
+          },
+          {
+            "label": "totalTipsReceived",
+            "offset": 0,
+            "slot": "11",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:50"
+          },
+          {
+            "label": "lifetimeStaked",
+            "offset": 0,
+            "slot": "12",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "SteakNStake",
+            "src": "contracts/SteakNStake.sol:51"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)73_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PausableStorage)161_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(ReentrancyGuardStorage)225_storage": {
+            "label": "struct ReentrancyGuardUpgradeable.ReentrancyGuardStorage",
+            "members": [
+              {
+                "label": "_status",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_contract(IERC20)965": {
+            "label": "contract IERC20",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_bool)": {
+            "label": "mapping(address => bool)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol:43",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

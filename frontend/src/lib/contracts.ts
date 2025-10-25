@@ -1,8 +1,8 @@
 // Contract addresses and ABIs for SteakNStake
 export const CONTRACTS = {
-  // Replace with actual deployed contract addresses
-  STEAK_TOKEN: '0x...', // $STEAK ERC20 token address
-  STEAKNSTAKE: '0x...', // SteakNStake contract address
+  // Real deployed contract addresses on Base mainnet
+  STEAK_TOKEN: '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07', // Your STEAK token
+  STEAKNSTAKE: '0x9900fbFfc6bbb6c082aC0488040fB88dd00c1622', // Your deployed SteakNStake contract
 } as const;
 
 // ERC20 ABI for approvals
@@ -54,7 +54,7 @@ export const STEAKNSTAKE_ABI = [
   },
   {
     "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "stakes",
+    "name": "stakedAmounts",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"

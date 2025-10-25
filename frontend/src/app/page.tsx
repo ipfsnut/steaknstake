@@ -86,17 +86,19 @@ export default function HomePage() {
     refetchData
   } = useStaking();
 
-  // $STEAK token contract address (replace with actual deployed address)
-  const STEAK_TOKEN_ADDRESS = '0x...'; // TODO: Replace with actual $STEAK token address
+  // $STEAK token contract address
+  const STEAK_TOKEN_ADDRESS = '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
 
   const handleSwapForSteak = () => {
-    const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=mainnet`;
+    const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
     
     if (isMiniApp && openUrl) {
       // Use Farcaster's native functionality - opens in-app browser
+      console.log('🔄 Opening swap in Farcaster miniapp:', swapUrl);
       openUrl(swapUrl);
     } else {
       // Fallback to regular browser
+      console.log('🌐 Opening swap in regular browser:', swapUrl);
       window.open(swapUrl, '_blank');
     }
   };

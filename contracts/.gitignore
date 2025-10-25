@@ -1,0 +1,60 @@
+# Hardhat
+node_modules/
+cache/
+artifacts/
+typechain/
+typechain-types/
+
+# Environment files (CRITICAL - NEVER COMMIT)
+.env
+.env.*
+!.env.example
+
+# Private keys and secrets (NEVER COMMIT)
+*.key
+*.pem
+*.p12
+*.pfx
+private-keys/
+secrets/
+wallets/
+
+# Deployment configs (NEVER COMMIT)
+deployments/localhost/
+deployments/hardhat/
+deployments/**/private/
+deploy-config.json
+deploy-secrets.json
+
+# Generated wallet files (NEVER COMMIT)
+generated-wallet.json
+wallet-*.json
+mnemonic.txt
+seed.txt
+
+# Deployment scripts (NEVER COMMIT)
+scripts/deploy-simple.js
+scripts/deploy-*.js
+scripts/*-deploy.js
+
+# Coverage and testing
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp files
+*.tmp
+*.temp
+*.bak
+*.backup

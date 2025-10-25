@@ -5,11 +5,13 @@ import { useAccount, useReadContract, useWriteContract, useWaitForTransactionRec
 import { parseEther, formatEther } from 'viem';
 import { CONTRACTS, ERC20_ABI, STEAKNSTAKE_ABI } from '@/lib/contracts';
 import { useFarcasterWallet } from './useFarcasterWallet';
+import { useFarcasterMiniApp } from './useFarcasterMiniApp';
 
 export function useStaking() {
   const { address } = useAccount();
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isFarcasterContext, isWalletConnected, getEthereumProvider } = useFarcasterWallet();
+  const { user, isMiniApp, sdk } = useFarcasterMiniApp();
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -100,16 +102,13 @@ export function useStaking() {
         context: isFarcasterContext ? 'Farcaster' : 'Web'
       });
 
+      // In Farcaster context, let the transaction proceed - Farcaster will handle wallet prompting
       if (isFarcasterContext && !address) {
-        // In Farcaster context, prompt user to connect wallet
-        console.log('🔌 Farcaster context detected - user needs to connect wallet');
-        console.error('Please connect your wallet to continue');
-        setIsProcessing(false);
-        return;
+        console.log('🔌 Farcaster context - proceeding with transaction, Farcaster will handle wallet');
       }
       
-      if (address) {
-        // Use wagmi for both web and Farcaster context (once wallet is connected)
+      if (address || isFarcasterContext) {
+        // Use wagmi for both web and Farcaster context
         console.log('📝 Calling writeContract for approval...');
         await writeContract({
           address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
@@ -143,16 +142,13 @@ export function useStaking() {
         context: isFarcasterContext ? 'Farcaster' : 'Web'
       });
 
+      // In Farcaster context, let the transaction proceed - Farcaster will handle wallet prompting
       if (isFarcasterContext && !address) {
-        // In Farcaster context, prompt user to connect wallet
-        console.log('🔌 Farcaster context detected - user needs to connect wallet');
-        console.error('Please connect your wallet to continue');
-        setIsProcessing(false);
-        return;
+        console.log('🔌 Farcaster context - proceeding with transaction, Farcaster will handle wallet');
       }
       
-      if (address) {
-        // Use wagmi for both web and Farcaster context (once wallet is connected)
+      if (address || isFarcasterContext) {
+        // Use wagmi for both web and Farcaster context
         console.log('📝 Calling writeContract for staking...');
         await writeContract({
           address: CONTRACTS.STEAKNSTAKE as `0x${string}`,

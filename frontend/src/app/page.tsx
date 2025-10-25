@@ -195,11 +195,25 @@ export default function HomePage() {
   };
 
   const handleStakeFlow = async (amount: string) => {
-    // Use wagmi address as the source of truth for wallet connection
-    if (!address && !isConnected) {
+    // In regular web context, check for wallet connection
+    if (!isMiniApp && !address && !isConnected) {
       alert('Please connect your wallet first');
       return;
     }
+    
+    // In Farcaster miniapp, just check for user authentication
+    if (isMiniApp && !user) {
+      alert('Farcaster user not authenticated');
+      return;
+    }
+    
+    console.log('🚀 Starting stake flow:', { 
+      isMiniApp, 
+      user: user?.username, 
+      address, 
+      isConnected, 
+      amount 
+    });
 
     try {
       if (currentStep === 'approve') {
@@ -421,7 +435,7 @@ export default function HomePage() {
                         MAX
                       </button>
                     </div>
-                    {!address && !isConnected ? (
+                    {!address && !isConnected && !isMiniApp ? (
                       <button 
                         onClick={connectWallet}
                         disabled={isFarcasterLoading}

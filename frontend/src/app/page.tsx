@@ -412,7 +412,9 @@ export default function HomePage() {
                       <button 
                         onClick={() => {
                           const input = document.getElementById('stakeAmountMiniapp') as HTMLInputElement;
-                          if (input) input.value = '1000'; // Default max amount, replace with actual balance
+                          if (input && balance) {
+                            input.value = balance; // Use actual balance
+                          }
                         }}
                         className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs bg-gray-100 hover:bg-gray-200 text-gray-600 px-2 py-1 rounded"
                       >

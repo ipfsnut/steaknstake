@@ -44,16 +44,33 @@ export function useStaking() {
 
   // Update step based on allowance
   useEffect(() => {
+    console.log('🔍 Allowance check:', {
+      allowance: allowance?.toString(),
+      hasAllowance: allowance && allowance > BigInt(0),
+      currentStep,
+      address,
+      contracts: CONTRACTS
+    });
+    
     if (allowance && allowance > BigInt(0)) {
       setCurrentStep('stake');
     } else {
       setCurrentStep('approve');
     }
-  }, [allowance]);
+  }, [allowance, address]);
 
   // Handle transaction confirmation
   useEffect(() => {
+    console.log('📄 Transaction confirmation:', {
+      isConfirmed,
+      isConfirming,
+      hash: hash?.toString(),
+      currentStep,
+      isPending
+    });
+    
     if (isConfirmed) {
+      console.log('✅ Transaction confirmed! Refetching data...');
       setIsProcessing(false);
       refetchAllowance();
       refetchBalance();
@@ -68,6 +85,8 @@ export function useStaking() {
   }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked]);
 
   const approveSteak = async (amount: string) => {
+    console.log('🚀 Starting approve flow...', { amount, address, isFarcasterContext });
+    
     try {
       setIsProcessing(true);
       const amountWei = parseEther(amount);
@@ -77,6 +96,7 @@ export function useStaking() {
         amountWei: amountWei.toString(),
         tokenAddress: CONTRACTS.STEAK_TOKEN,
         spenderAddress: CONTRACTS.STEAKNSTAKE,
+        userAddress: address,
         context: isFarcasterContext ? 'Farcaster' : 'Web'
       });
 
@@ -90,12 +110,14 @@ export function useStaking() {
       
       if (address) {
         // Use wagmi for both web and Farcaster context (once wallet is connected)
-        writeContract({
+        console.log('📝 Calling writeContract for approval...');
+        await writeContract({
           address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
           abi: ERC20_ABI,
           functionName: 'approve',
           args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
         });
+        console.log('✅ Approve transaction submitted');
       } else {
         console.error('No wallet connection available');
         setIsProcessing(false);
@@ -107,6 +129,8 @@ export function useStaking() {
   };
 
   const stakeTokens = async (amount: string) => {
+    console.log('🚀 Starting stake flow...', { amount, address, isFarcasterContext });
+    
     try {
       setIsProcessing(true);
       const amountWei = parseEther(amount);
@@ -115,6 +139,7 @@ export function useStaking() {
         amount,
         amountWei: amountWei.toString(),
         contractAddress: CONTRACTS.STEAKNSTAKE,
+        userAddress: address,
         context: isFarcasterContext ? 'Farcaster' : 'Web'
       });
 
@@ -128,12 +153,14 @@ export function useStaking() {
       
       if (address) {
         // Use wagmi for both web and Farcaster context (once wallet is connected)
-        writeContract({
+        console.log('📝 Calling writeContract for staking...');
+        await writeContract({
           address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
           abi: STEAKNSTAKE_ABI,
           functionName: 'stake',
           args: [amountWei],
         });
+        console.log('✅ Stake transaction submitted');
       } else {
         console.error('No wallet connection available');
         setIsProcessing(false);

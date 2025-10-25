@@ -45,12 +45,41 @@ export function useWalletConnection() {
     }
   }, [profile])
 
+  // Auto-connect Farcaster wallet in miniapp context
+  useEffect(() => {
+    const autoConnectFarcaster = async () => {
+      if (isFarcasterContext && !isConnected) {
+        console.log('🔄 Auto-connecting Farcaster wallet...')
+        const farcasterConnector = connectors.find(c => c.id === 'farcasterMiniApp')
+        if (farcasterConnector) {
+          try {
+            await connect({ connector: farcasterConnector })
+            console.log('✅ Farcaster wallet auto-connected')
+          } catch (error) {
+            console.log('⚠️ Farcaster auto-connect failed:', error)
+          }
+        }
+      }
+    }
+
+    // Small delay to ensure connectors are ready
+    const timer = setTimeout(autoConnectFarcaster, 500)
+    return () => clearTimeout(timer)
+  }, [isFarcasterContext, isConnected, connectors, connect])
+
   const connectWallet = async () => {
     try {
-      // Use Farcaster wallet connection in miniapp context
+      // Use Farcaster connector in miniapp context
       if (isFarcasterContext) {
-        console.log('🔌 Using Farcaster wallet connection...')
-        return await connectFarcasterWallet()
+        console.log('🔌 Using Farcaster wagmi connector...')
+        const farcasterConnector = connectors.find(c => c.id === 'farcasterMiniApp')
+        if (farcasterConnector) {
+          await connect({ connector: farcasterConnector })
+          return true
+        } else {
+          console.log('🔄 Fallback: Using Farcaster wallet connection...')
+          return await connectFarcasterWallet()
+        }
       } else {
         // Regular wallet connection for web
         console.log('🔌 Using regular wallet connection...')

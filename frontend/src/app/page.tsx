@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { stakingApi, tippingApi } from '@/lib/api';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
+import { useStaking } from '@/hooks/useStaking';
 
 interface StakingStats {
   totalStakers: number;
@@ -71,6 +72,35 @@ export default function HomePage() {
   // Use Farcaster miniapp integration
   const { isReady, isMiniApp, user, openUrl } = useFarcasterMiniApp();
 
+  // Use staking contract integration
+  const {
+    currentStep,
+    isProcessing,
+    error: stakingError,
+    allowance,
+    balance,
+    stakedAmount: contractStakedAmount,
+    approveSteak,
+    stakeTokens,
+    unstakeTokens,
+    refetchData
+  } = useStaking();
+
+  // $STEAK token contract address (replace with actual deployed address)
+  const STEAK_TOKEN_ADDRESS = '0x...'; // TODO: Replace with actual $STEAK token address
+
+  const handleSwapForSteak = () => {
+    const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=mainnet`;
+    
+    if (isMiniApp && openUrl) {
+      // Use Farcaster's native functionality - opens in-app browser
+      openUrl(swapUrl);
+    } else {
+      // Fallback to regular browser
+      window.open(swapUrl, '_blank');
+    }
+  };
+
   // Debug logging for miniapp state
   useEffect(() => {
     console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp, 'user:', user);
@@ -137,58 +167,73 @@ export default function HomePage() {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
   };
 
-  const handleStake = async (amount: number) => {
+  const handleStakeFlow = async (amount: string) => {
     if (!walletAddress) {
       alert('Please connect your wallet first');
       return;
     }
 
     try {
-      // This would integrate with the smart contract
-      const stakeResponse = await stakingApi.stake({
-        walletAddress,
-        amount,
-        // transactionHash and blockNumber would come from the contract interaction
-      });
-
-      if (stakeResponse.data.success) {
-        // Refresh user position
-        const positionResponse = await stakingApi.getPosition(walletAddress);
-        if (positionResponse.data.success) {
-          setUserPosition(positionResponse.data.data);
+      if (currentStep === 'approve') {
+        // Step 1: Approve tokens
+        await approveSteak(amount);
+      } else if (currentStep === 'stake') {
+        // Step 2: Stake tokens
+        await stakeTokens(amount);
+        
+        // Also update backend if needed
+        try {
+          const stakeResponse = await stakingApi.stake({
+            walletAddress,
+            amount: parseFloat(amount),
+            // transactionHash will be available after the transaction
+          });
+          
+          if (stakeResponse.data.success) {
+            const positionResponse = await stakingApi.getPosition(walletAddress);
+            if (positionResponse.data.success) {
+              setUserPosition(positionResponse.data.data);
+            }
+          }
+        } catch (backendError) {
+          console.warn('Backend update failed, but contract interaction succeeded:', backendError);
         }
-        alert('Stake successful!');
       }
     } catch (error) {
-      console.error('Error staking:', error);
-      alert('Error staking tokens');
+      console.error('Staking flow error:', error);
+      alert(`Error: ${error instanceof Error ? error.message : 'Transaction failed'}`);
     }
   };
 
-  const handleUnstake = async (amount: number) => {
+  const handleUnstake = async (amount: string) => {
     if (!walletAddress) {
       alert('Please connect your wallet first');
       return;
     }
 
     try {
-      // This would integrate with the smart contract
-      const unstakeResponse = await stakingApi.unstake({
-        walletAddress,
-        amount,
-      });
+      // Call contract to unstake
+      await unstakeTokens(amount);
+      
+      // Also update backend if needed
+      try {
+        const unstakeResponse = await stakingApi.unstake({
+          walletAddress,
+          amount: parseFloat(amount),
+        });
 
-      if (unstakeResponse.data.success) {
-        // Refresh user position
-        const positionResponse = await stakingApi.getPosition(walletAddress);
-        if (positionResponse.data.success) {
-          setUserPosition(positionResponse.data.data);
+        if (unstakeResponse.data.success) {
+          const positionResponse = await stakingApi.getPosition(walletAddress);
+          if (positionResponse.data.success) {
+            setUserPosition(positionResponse.data.data);
+          }
         }
-        alert('Unstake successful!');
+      } catch (backendError) {
+        console.warn('Backend update failed, but contract interaction succeeded:', backendError);
       }
     } catch (error) {
       console.error('Error unstaking:', error);
-      alert('Error unstaking tokens');
+      alert(`Error: ${error instanceof Error ? error.message : 'Transaction failed'}`);
     }
   };
 
@@ -222,6 +267,9 @@ export default function HomePage() {
           setUserPosition(positionResponse.data.data);
         }
       }
+
+      // Refresh contract data
+      refetchData();
     } catch (error) {
       console.error('Error refreshing data:', error);
     } finally {
@@ -295,16 +343,36 @@ export default function HomePage() {
                   <h3 className="text-xl font-bold mb-4">Step 1: Buy $STEAK</h3>
                   <p className="text-gray-600 mb-4">Get $STEAK tokens to start earning rewards.</p>
                   <button 
-                    onClick={() => window.open('https://app.uniswap.org/', '_blank')}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium w-full"
+                    onClick={handleSwapForSteak}
+                    className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-medium w-full flex items-center justify-center gap-2"
                   >
-                    Buy $STEAK on Uniswap
+                    {isMiniApp ? (
+                      <>
+                        <span>🔄</span>
+                        <span>Swap for $STEAK</span>
+                        <span className="text-xs bg-purple-400 px-2 py-1 rounded">Farcaster</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>💰</span>
+                        <span>Buy $STEAK</span>
+                      </>
+                    )}
                   </button>
                 </div>
 
                 <div className="bg-white rounded-xl p-6 border mb-6">
                   <h3 className="text-xl font-bold mb-4">Step 2: Stake Tokens</h3>
                   <p className="text-gray-600 mb-4">Stake your $STEAK to start earning daily allowances.</p>
+                  
+                  {stakingError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                      <p className="text-sm text-red-700">
+                        ⚠️ {stakingError.message || 'Transaction failed'}
+                      </p>
+                    </div>
+                  )}
+                  
                   <div className="space-y-4">
                     <div className="relative">
                       <input 
@@ -325,12 +393,27 @@ export default function HomePage() {
                     </div>
                     <button 
                       onClick={() => {
-                        const amount = parseFloat((document.getElementById('stakeAmountMiniapp') as HTMLInputElement)?.value || '0');
-                        if (amount > 0) handleStake(amount);
+                        const amount = (document.getElementById('stakeAmountMiniapp') as HTMLInputElement)?.value || '0';
+                        if (parseFloat(amount) > 0) handleStakeFlow(amount);
                       }}
-                      className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-medium w-full"
+                      disabled={isProcessing}
+                      className={`px-6 py-3 rounded-lg font-medium w-full text-white ${
+                        isProcessing 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : currentStep === 'approve' 
+                            ? 'bg-blue-500 hover:bg-blue-600' 
+                            : 'bg-red-500 hover:bg-red-600'
+                      }`}
                     >
-                      Stake $STEAK
+                      {isProcessing ? (
+                        '⏳ Processing...'
+                      ) : currentStep === 'approve' ? (
+                        '✅ Approve $STEAK'
+                      ) : currentStep === 'stake' ? (
+                        '🥩 Stake $STEAK'
+                      ) : (
+                        '✨ Stake Complete!'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -350,18 +433,20 @@ export default function HomePage() {
                       <div className="flex gap-2">
                         <button 
                           onClick={() => {
-                            const amount = parseFloat((document.getElementById('unstakeAmountMiniapp') as HTMLInputElement)?.value || '0');
-                            if (amount > 0) handleUnstake(amount);
+                            const amount = (document.getElementById('unstakeAmountMiniapp') as HTMLInputElement)?.value || '0';
+                            if (parseFloat(amount) > 0) handleUnstake(amount);
                           }}
-                          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex-1"
+                          disabled={isProcessing}
+                          className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium flex-1"
                         >
-                          Unstake $STEAK
+                          {isProcessing ? '⏳ Processing...' : 'Unstake $STEAK'}
                         </button>
                         <button 
                           onClick={() => {
-                            if (userPosition.stakedAmount > 0) handleUnstake(userPosition.stakedAmount);
+                            if (userPosition.stakedAmount > 0) handleUnstake(userPosition.stakedAmount.toString());
                           }}
-                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-medium"
+                          disabled={isProcessing}
+                          className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg font-medium"
                         >
                           Unstake All
                         </button>
@@ -410,16 +495,36 @@ export default function HomePage() {
                   <h3 className="text-xl font-bold mb-4">Step 1: Buy $STEAK</h3>
                   <p className="text-gray-600 mb-4">Get $STEAK tokens to start earning rewards.</p>
                   <button 
-                    onClick={() => window.open('https://app.uniswap.org/', '_blank')}
-                    className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium w-full"
+                    onClick={handleSwapForSteak}
+                    className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-lg font-medium w-full flex items-center justify-center gap-2"
                   >
-                    Buy $STEAK on Uniswap
+                    {isMiniApp ? (
+                      <>
+                        <span>🔄</span>
+                        <span>Swap for $STEAK</span>
+                        <span className="text-xs bg-purple-400 px-2 py-1 rounded">Farcaster</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>💰</span>
+                        <span>Buy $STEAK</span>
+                      </>
+                    )}
                   </button>
                 </div>
 
                 <div className="bg-white rounded-xl p-6 border mb-6">
                   <h3 className="text-xl font-bold mb-4">Step 2: Stake Tokens</h3>
                   <p className="text-gray-600 mb-4">Stake your $STEAK to start earning daily allowances.</p>
+                  
+                  {stakingError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                      <p className="text-sm text-red-700">
+                        ⚠️ {stakingError.message || 'Transaction failed'}
+                      </p>
+                    </div>
+                  )}
+                  
                   <div className="space-y-4">
                     <div className="relative">
                       <input 
@@ -440,12 +545,27 @@ export default function HomePage() {
                     </div>
                     <button 
                       onClick={() => {
-                        const amount = parseFloat((document.getElementById('stakeAmount') as HTMLInputElement)?.value || '0');
-                        if (amount > 0) handleStake(amount);
+                        const amount = (document.getElementById('stakeAmount') as HTMLInputElement)?.value || '0';
+                        if (parseFloat(amount) > 0) handleStakeFlow(amount);
                       }}
-                      className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-medium w-full"
+                      disabled={isProcessing}
+                      className={`px-6 py-3 rounded-lg font-medium w-full text-white ${
+                        isProcessing 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : currentStep === 'approve' 
+                            ? 'bg-blue-500 hover:bg-blue-600' 
+                            : 'bg-red-500 hover:bg-red-600'
+                      }`}
                     >
-                      Stake $STEAK
+                      {isProcessing ? (
+                        '⏳ Processing...'
+                      ) : currentStep === 'approve' ? (
+                        '✅ Approve $STEAK'
+                      ) : currentStep === 'stake' ? (
+                        '🥩 Stake $STEAK'
+                      ) : (
+                        '✨ Stake Complete!'
+                      )}
                     </button>
                   </div>
                 </div>
@@ -465,18 +585,20 @@ export default function HomePage() {
                       <div className="flex gap-2">
                         <button 
                           onClick={() => {
-                            const amount = parseFloat((document.getElementById('unstakeAmount') as HTMLInputElement)?.value || '0');
-                            if (amount > 0) handleUnstake(amount);
+                            const amount = (document.getElementById('unstakeAmount') as HTMLInputElement)?.value || '0';
+                            if (parseFloat(amount) > 0) handleUnstake(amount);
                           }}
-                          className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-medium flex-1"
+                          disabled={isProcessing}
+                          className="bg-orange-500 hover:bg-orange-600 disabled:bg-gray-400 text-white px-6 py-3 rounded-lg font-medium flex-1"
                         >
-                          Unstake $STEAK
+                          {isProcessing ? '⏳ Processing...' : 'Unstake $STEAK'}
                         </button>
                         <button 
                           onClick={() => {
-                            if (userPosition.stakedAmount > 0) handleUnstake(userPosition.stakedAmount);
+                            if (userPosition.stakedAmount > 0) handleUnstake(userPosition.stakedAmount.toString());
                           }}
-                          className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-3 rounded-lg font-medium"
+                          disabled={isProcessing}
+                          className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg font-medium"
                         >
                           Unstake All
                         </button>

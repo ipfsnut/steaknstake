@@ -107,8 +107,44 @@ export function useStaking() {
         console.log('🔌 Farcaster context - proceeding with transaction, Farcaster will handle wallet');
       }
       
-      if (address || isFarcasterContext) {
-        // Use wagmi for both web and Farcaster context
+      if (isFarcasterContext && sdk) {
+        // Use Farcaster wallet provider for transactions in miniapp
+        console.log('📝 Using Farcaster wallet provider for approval transaction...');
+        
+        try {
+          // Get the Ethereum provider from Farcaster
+          const provider = await sdk.wallet.getEthereumProvider();
+          if (!provider) {
+            console.error('❌ No Farcaster wallet provider available');
+            setIsProcessing(false);
+            return;
+          }
+
+          // Encode approval function call data
+          const approveCalldata = `0x095ea7b3${CONTRACTS.STEAKNSTAKE.slice(2).padStart(64, '0')}${amountWei.toString(16).padStart(64, '0')}`;
+          
+          const txHash = await provider.request({
+            method: 'eth_sendTransaction',
+            params: [{
+              to: CONTRACTS.STEAK_TOKEN as `0x${string}`,
+              data: approveCalldata as `0x${string}`,
+              value: '0x0',
+            }]
+          });
+          
+          console.log('✅ Farcaster approval transaction submitted:', txHash);
+          // Wait a bit then refetch data
+          setTimeout(() => {
+            refetchAllowance();
+            refetchBalance();
+            setIsProcessing(false);
+          }, 2000);
+        } catch (sdkError) {
+          console.error('❌ Farcaster wallet provider error:', sdkError);
+          setIsProcessing(false);
+        }
+      } else if (address) {
+        // Use wagmi for regular web context
         console.log('📝 Calling writeContract for approval...');
         await writeContract({
           address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
@@ -147,8 +183,45 @@ export function useStaking() {
         console.log('🔌 Farcaster context - proceeding with transaction, Farcaster will handle wallet');
       }
       
-      if (address || isFarcasterContext) {
-        // Use wagmi for both web and Farcaster context
+      if (isFarcasterContext && sdk) {
+        // Use Farcaster wallet provider for transactions in miniapp
+        console.log('📝 Using Farcaster wallet provider for stake transaction...');
+        
+        try {
+          // Get the Ethereum provider from Farcaster
+          const provider = await sdk.wallet.getEthereumProvider();
+          if (!provider) {
+            console.error('❌ No Farcaster wallet provider available');
+            setIsProcessing(false);
+            return;
+          }
+
+          // Encode stake function call data: stake(uint256)
+          const stakeCalldata = `0xa694fc3a${amountWei.toString(16).padStart(64, '0')}`;
+          
+          const txHash = await provider.request({
+            method: 'eth_sendTransaction',
+            params: [{
+              to: CONTRACTS.STEAKNSTAKE as `0x${string}`,
+              data: stakeCalldata as `0x${string}`,
+              value: '0x0',
+            }]
+          });
+          
+          console.log('✅ Farcaster stake transaction submitted:', txHash);
+          // Wait a bit then refetch data
+          setTimeout(() => {
+            refetchAllowance();
+            refetchBalance();
+            refetchStaked();
+            setIsProcessing(false);
+          }, 2000);
+        } catch (sdkError) {
+          console.error('❌ Farcaster wallet provider error:', sdkError);
+          setIsProcessing(false);
+        }
+      } else if (address) {
+        // Use wagmi for regular web context
         console.log('📝 Calling writeContract for staking...');
         await writeContract({
           address: CONTRACTS.STEAKNSTAKE as `0x${string}`,

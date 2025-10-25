@@ -4,7 +4,7 @@ import { WalletProvider } from '@/components/WalletProvider';
 import { FarcasterGate } from '@/components/FarcasterGate';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://steak.epicdylan.com'),
+  metadataBase: new URL('https://74ff15aa.steaknstake.pages.dev'),
   title: 'SteakNStake - Social Staking meets Farcaster Tipping',
   description: 'Stake $STEAK tokens, earn rewards, and tip your favorite Farcaster creators. Your rewards can only be given away - not claimed!',
   keywords: ['staking', 'farcaster', 'social', 'tipping', 'web3', 'crypto', 'rewards'],
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'SteakNStake - Social Staking meets Farcaster Tipping',
     description: 'Stake $STEAK tokens, earn rewards, and tip your favorite Farcaster creators. Your rewards can only be given away - not claimed!',
-    url: 'https://steak.epicdylan.com',
+    url: 'https://74ff15aa.steaknstake.pages.dev',
     siteName: 'SteakNStake',
     images: [
       {
@@ -40,12 +40,12 @@ export const metadata: Metadata = {
   other: {
     // Farcaster Frame metadata
     'fc:frame': 'vNext',
-    'fc:frame:image': 'https://steak.epicdylan.com/SteakNStake.png',
+    'fc:frame:image': 'https://74ff15aa.steaknstake.pages.dev/SteakNStake.png',
     'fc:frame:image:aspect_ratio': '1.91:1',
     'fc:frame:button:1': 'Open SteakNStake',
     'fc:frame:button:1:action': 'link',
-    'fc:frame:button:1:target': 'https://steak.epicdylan.com',
-    'fc:frame:post_url': 'https://steak.epicdylan.com/api/frame',
+    'fc:frame:button:1:target': 'https://74ff15aa.steaknstake.pages.dev',
+    'fc:frame:post_url': 'https://74ff15aa.steaknstake.pages.dev/api/frame',
   },
 };
 

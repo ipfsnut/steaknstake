@@ -23,8 +23,10 @@ export function FarcasterGate({ children }: FarcasterGateProps) {
       // Check for frame postMessage API
       const hasFrameAPI = typeof window !== 'undefined' && window.parent !== window
       
-      // For development, allow localhost
-      const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      // For development, allow localhost and pages.dev
+      const isDev = window.location.hostname === 'localhost' || 
+                   window.location.hostname === '127.0.0.1' ||
+                   window.location.hostname.includes('pages.dev')
       
       // Check URL parameters that might indicate Farcaster context
       const urlParams = new URLSearchParams(window.location.search)

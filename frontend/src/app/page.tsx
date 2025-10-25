@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useAccount } from 'wagmi';
 import { stakingApi, tippingApi } from '@/lib/api';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
@@ -58,6 +59,9 @@ export default function HomePage() {
   const [showTipHelp, setShowTipHelp] = useState(false);
   const [showClaimHelp, setShowClaimHelp] = useState(false);
   const [showStatsHelp, setShowStatsHelp] = useState(false);
+
+  // Direct wagmi wallet connection
+  const { address, isConnected } = useAccount();
 
   // Use real wallet connection
   const { 
@@ -191,7 +195,8 @@ export default function HomePage() {
   };
 
   const handleStakeFlow = async (amount: string) => {
-    if (!walletAddress) {
+    // Use wagmi address as the source of truth for wallet connection
+    if (!address && !isConnected) {
       alert('Please connect your wallet first');
       return;
     }
@@ -207,13 +212,13 @@ export default function HomePage() {
         // Also update backend if needed
         try {
           const stakeResponse = await stakingApi.stake({
-            walletAddress,
+            walletAddress: address || walletAddress,
             amount: parseFloat(amount),
             // transactionHash will be available after the transaction
           });
           
           if (stakeResponse.data.success) {
-            const positionResponse = await stakingApi.getPosition(walletAddress);
+            const positionResponse = await stakingApi.getPosition(address || walletAddress);
             if (positionResponse.data.success) {
               setUserPosition(positionResponse.data.data);
             }
@@ -229,7 +234,7 @@ export default function HomePage() {
   };
 
   const handleUnstake = async (amount: string) => {
-    if (!walletAddress) {
+    if (!address && !isConnected) {
       alert('Please connect your wallet first');
       return;
     }
@@ -414,30 +419,40 @@ export default function HomePage() {
                         MAX
                       </button>
                     </div>
-                    <button 
-                      onClick={() => {
-                        const amount = (document.getElementById('stakeAmountMiniapp') as HTMLInputElement)?.value || '0';
-                        if (parseFloat(amount) > 0) handleStakeFlow(amount);
-                      }}
-                      disabled={isProcessing}
-                      className={`px-6 py-3 rounded-lg font-medium w-full text-white ${
-                        isProcessing 
-                          ? 'bg-gray-400 cursor-not-allowed' 
-                          : currentStep === 'approve' 
-                            ? 'bg-blue-500 hover:bg-blue-600' 
-                            : 'bg-red-500 hover:bg-red-600'
-                      }`}
-                    >
-                      {isProcessing ? (
-                        '⏳ Processing...'
-                      ) : currentStep === 'approve' ? (
-                        '✅ Approve $STEAK'
-                      ) : currentStep === 'stake' ? (
-                        '🥩 Stake $STEAK'
-                      ) : (
-                        '✨ Stake Complete!'
-                      )}
-                    </button>
+                    {!address && !isConnected ? (
+                      <button 
+                        onClick={connectWallet}
+                        disabled={isFarcasterLoading}
+                        className="px-6 py-3 rounded-lg font-medium w-full text-white bg-green-500 hover:bg-green-600 disabled:bg-gray-400"
+                      >
+                        {isFarcasterLoading ? '⏳ Connecting...' : '🔗 Connect Wallet'}
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => {
+                          const amount = (document.getElementById('stakeAmountMiniapp') as HTMLInputElement)?.value || '0';
+                          if (parseFloat(amount) > 0) handleStakeFlow(amount);
+                        }}
+                        disabled={isProcessing}
+                        className={`px-6 py-3 rounded-lg font-medium w-full text-white ${
+                          isProcessing 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : currentStep === 'approve' 
+                              ? 'bg-blue-500 hover:bg-blue-600' 
+                              : 'bg-red-500 hover:bg-red-600'
+                        }`}
+                      >
+                        {isProcessing ? (
+                          '⏳ Processing...'
+                        ) : currentStep === 'approve' ? (
+                          '✅ Approve $STEAK'
+                        ) : currentStep === 'stake' ? (
+                          '🥩 Stake $STEAK'
+                        ) : (
+                          '✨ Stake Complete!'
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
 

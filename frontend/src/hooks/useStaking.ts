@@ -9,7 +9,7 @@ import { useFarcasterWallet } from './useFarcasterWallet';
 export function useStaking() {
   const { address } = useAccount();
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isFarcasterContext, isWalletConnected, connectFarcasterWallet } = useFarcasterWallet();
+  const { isFarcasterContext, isWalletConnected, getEthereumProvider } = useFarcasterWallet();
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -68,23 +68,6 @@ export function useStaking() {
   }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked]);
 
   const approveSteak = async (amount: string) => {
-    // Handle Farcaster context wallet connection
-    if (!address) {
-      if (isFarcasterContext) {
-        console.log('🔌 Connecting Farcaster wallet for approval...');
-        const connected = await connectFarcasterWallet();
-        if (!connected) {
-          console.error('Failed to connect Farcaster wallet');
-          return;
-        }
-        // Wait a moment for connection to establish
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } else {
-        console.error('No wallet address available');
-        return;
-      }
-    }
-
     try {
       setIsProcessing(true);
       const amountWei = parseEther(amount);
@@ -94,15 +77,29 @@ export function useStaking() {
         amountWei: amountWei.toString(),
         tokenAddress: CONTRACTS.STEAK_TOKEN,
         spenderAddress: CONTRACTS.STEAKNSTAKE,
-        userAddress: address
+        context: isFarcasterContext ? 'Farcaster' : 'Web'
       });
+
+      if (isFarcasterContext && !address) {
+        // In Farcaster context, prompt user to connect wallet
+        console.log('🔌 Farcaster context detected - user needs to connect wallet');
+        console.error('Please connect your wallet to continue');
+        setIsProcessing(false);
+        return;
+      }
       
-      writeContract({
-        address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
-        abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
-      });
+      if (address) {
+        // Use wagmi for both web and Farcaster context (once wallet is connected)
+        writeContract({
+          address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
+        });
+      } else {
+        console.error('No wallet connection available');
+        setIsProcessing(false);
+      }
     } catch (err) {
       console.error('Approve failed:', err);
       setIsProcessing(false);
@@ -110,23 +107,6 @@ export function useStaking() {
   };
 
   const stakeTokens = async (amount: string) => {
-    // Handle Farcaster context wallet connection
-    if (!address) {
-      if (isFarcasterContext) {
-        console.log('🔌 Connecting Farcaster wallet for staking...');
-        const connected = await connectFarcasterWallet();
-        if (!connected) {
-          console.error('Failed to connect Farcaster wallet');
-          return;
-        }
-        // Wait a moment for connection to establish
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } else {
-        console.error('No wallet address available');
-        return;
-      }
-    }
-
     try {
       setIsProcessing(true);
       const amountWei = parseEther(amount);
@@ -135,15 +115,29 @@ export function useStaking() {
         amount,
         amountWei: amountWei.toString(),
         contractAddress: CONTRACTS.STEAKNSTAKE,
-        userAddress: address
+        context: isFarcasterContext ? 'Farcaster' : 'Web'
       });
+
+      if (isFarcasterContext && !address) {
+        // In Farcaster context, prompt user to connect wallet
+        console.log('🔌 Farcaster context detected - user needs to connect wallet');
+        console.error('Please connect your wallet to continue');
+        setIsProcessing(false);
+        return;
+      }
       
-      writeContract({
-        address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
-        abi: STEAKNSTAKE_ABI,
-        functionName: 'stake',
-        args: [amountWei],
-      });
+      if (address) {
+        // Use wagmi for both web and Farcaster context (once wallet is connected)
+        writeContract({
+          address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
+          abi: STEAKNSTAKE_ABI,
+          functionName: 'stake',
+          args: [amountWei],
+        });
+      } else {
+        console.error('No wallet connection available');
+        setIsProcessing(false);
+      }
     } catch (err) {
       console.error('Stake failed:', err);
       setIsProcessing(false);

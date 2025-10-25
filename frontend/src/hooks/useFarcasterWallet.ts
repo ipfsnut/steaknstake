@@ -1,116 +1,41 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useState } from 'react';
 import { useFarcasterMiniApp } from './useFarcasterMiniApp';
 
 /**
- * Bridge between Farcaster miniapp context and Wagmi wallet connection
+ * Simplified Farcaster context handler - no external wallet connection needed
+ * In Farcaster miniapps, we use the SDK for transactions, not wagmi
  */
 export function useFarcasterWallet() {
-  const { user, isMiniApp, isReady } = useFarcasterMiniApp();
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-  const [isConnecting, setIsConnecting] = useState(false);
+  const { user, isMiniApp, isReady, sdk } = useFarcasterMiniApp();
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-connect in Farcaster miniapp context
-  useEffect(() => {
-    const autoConnect = async () => {
-      if (!isMiniApp || !isReady || !user || isConnected || isConnecting) return;
+  // In Farcaster miniapp, user is already authenticated through the context
+  const isUserAuthenticated = isMiniApp && isReady && !!user;
 
-      try {
-        setIsConnecting(true);
-        setError(null);
-
-        // Look for injected connector first (Coinbase, MetaMask, etc)
-        const injectedConnector = connectors.find(
-          connector => connector.id === 'injected' && connector.ready
-        );
-
-        if (injectedConnector) {
-          console.log('🔌 Connecting Farcaster wallet via injected connector...');
-          await connect({ connector: injectedConnector });
-        } else {
-          // Fallback to WalletConnect if no injected wallet
-          const walletConnectConnector = connectors.find(
-            connector => connector.id === 'walletConnect'
-          );
-          
-          if (walletConnectConnector) {
-            console.log('🔌 Connecting Farcaster wallet via WalletConnect...');
-            await connect({ connector: walletConnectConnector });
-          } else {
-            setError('No wallet connector available in Farcaster miniapp');
-          }
-        }
-      } catch (err) {
-        console.error('Failed to connect Farcaster wallet:', err);
-        setError(err instanceof Error ? err.message : 'Failed to connect wallet');
-      } finally {
-        setIsConnecting(false);
-      }
-    };
-
-    // Small delay to ensure SDK is ready
-    const timer = setTimeout(autoConnect, 500);
-    return () => clearTimeout(timer);
-  }, [isMiniApp, isReady, user, isConnected, isConnecting, connect, connectors]);
-
-  const connectFarcasterWallet = async () => {
-    if (!isMiniApp) {
+  const getEthereumProvider = async () => {
+    if (!isMiniApp || !sdk) {
       setError('Not in Farcaster miniapp context');
-      return false;
-    }
-
-    if (!user) {
-      setError('Farcaster user not authenticated');
-      return false;
+      return null;
     }
 
     try {
-      setIsConnecting(true);
-      setError(null);
-
-      // Try injected connector first
-      const injectedConnector = connectors.find(
-        connector => connector.id === 'injected' && connector.ready
-      );
-
-      if (injectedConnector) {
-        await connect({ connector: injectedConnector });
-        return true;
+      // Check if wallet provider is available
+      const capabilities = await sdk.getCapabilities();
+      if (!capabilities.includes('wallet.getEthereumProvider')) {
+        setError('Ethereum provider not available in this Farcaster client');
+        return null;
       }
 
-      // Fallback to WalletConnect
-      const walletConnectConnector = connectors.find(
-        connector => connector.id === 'walletConnect'
-      );
-
-      if (walletConnectConnector) {
-        await connect({ connector: walletConnectConnector });
-        return true;
-      }
-
-      setError('No suitable wallet connector found');
-      return false;
+      // Get the Ethereum provider from Farcaster
+      const provider = await sdk.wallet.getEthereumProvider();
+      console.log('✅ Got Farcaster Ethereum provider:', provider);
+      return provider;
     } catch (err) {
-      console.error('Manual wallet connection failed:', err);
-      setError(err instanceof Error ? err.message : 'Connection failed');
-      return false;
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const disconnectFarcasterWallet = async () => {
-    try {
-      await disconnect();
-      setError(null);
-    } catch (err) {
-      console.error('Failed to disconnect wallet:', err);
-      setError(err instanceof Error ? err.message : 'Disconnect failed');
+      console.error('Failed to get Ethereum provider:', err);
+      setError(err instanceof Error ? err.message : 'Failed to get provider');
+      return null;
     }
   };
 
@@ -118,14 +43,21 @@ export function useFarcasterWallet() {
     // State
     isFarcasterContext: isMiniApp,
     farcasterUser: user,
-    isWalletConnected: isConnected && !!address,
-    walletAddress: address,
-    isConnecting,
+    isWalletConnected: isUserAuthenticated, // User is "connected" if authenticated in Farcaster
+    walletAddress: user?.fid ? `farcaster:${user.fid}` : null, // Use FID as identifier
+    isConnecting: false, // No connection process needed
     error,
     
-    // Actions
-    connectFarcasterWallet,
-    disconnectFarcasterWallet,
+    // Actions - simplified for Farcaster context
+    connectFarcasterWallet: async () => {
+      // No actual connection needed - user is already authenticated
+      return isUserAuthenticated;
+    },
+    disconnectFarcasterWallet: async () => {
+      // Can't disconnect from Farcaster context
+      setError('Cannot disconnect from Farcaster context');
+    },
+    getEthereumProvider,
     
     // Utils
     clearError: () => setError(null),

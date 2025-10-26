@@ -132,7 +132,10 @@ export function useStaking() {
           // Encode approval function call data
           const approveCalldata = `0x095ea7b3${CONTRACTS.STEAKNSTAKE.slice(2).padStart(64, '0')}${amountWei.toString(16).padStart(64, '0')}`;
           
-          const txHash = await provider.request({
+          console.log('📝 Submitting transaction to Farcaster wallet...');
+          
+          // Add timeout to the provider request itself
+          const txPromise = provider.request({
             method: 'eth_sendTransaction',
             params: [{
               to: CONTRACTS.STEAK_TOKEN as `0x${string}`,
@@ -140,6 +143,12 @@ export function useStaking() {
               value: '0x0',
             }]
           });
+          
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Transaction request timeout after 60 seconds')), 60000);
+          });
+          
+          const txHash = await Promise.race([txPromise, timeoutPromise]);
           
           console.log('✅ Farcaster approval transaction submitted:', txHash);
           
@@ -180,6 +189,21 @@ export function useStaking() {
           waitForConfirmation();
         } catch (sdkError) {
           console.error('❌ Farcaster wallet provider error:', sdkError);
+          
+          // Check if user canceled or if it's a timeout
+          if (sdkError.message?.includes('timeout')) {
+            console.log('⏰ Transaction request timed out - user may have canceled');
+          } else if (sdkError.message?.includes('rejected') || sdkError.message?.includes('denied')) {
+            console.log('❌ User rejected the transaction');
+          } else {
+            console.log('🔄 Unknown error, trying to refetch data anyway...');
+            // Still try to refetch in case transaction succeeded
+            setTimeout(() => {
+              refetchAllowance();
+              refetchBalance();
+            }, 2000);
+          }
+          
           setIsProcessing(false);
         }
       } else if (address) {
@@ -238,7 +262,10 @@ export function useStaking() {
           // Encode stake function call data: stake(uint256)
           const stakeCalldata = `0xa694fc3a${amountWei.toString(16).padStart(64, '0')}`;
           
-          const txHash = await provider.request({
+          console.log('📝 Submitting stake transaction to Farcaster wallet...');
+          
+          // Add timeout to the provider request itself
+          const txPromise = provider.request({
             method: 'eth_sendTransaction',
             params: [{
               to: CONTRACTS.STEAKNSTAKE as `0x${string}`,
@@ -246,6 +273,12 @@ export function useStaking() {
               value: '0x0',
             }]
           });
+          
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Transaction request timeout after 60 seconds')), 60000);
+          });
+          
+          const txHash = await Promise.race([txPromise, timeoutPromise]);
           
           console.log('✅ Farcaster stake transaction submitted:', txHash);
           
@@ -288,6 +321,22 @@ export function useStaking() {
           waitForConfirmation();
         } catch (sdkError) {
           console.error('❌ Farcaster wallet provider error:', sdkError);
+          
+          // Check if user canceled or if it's a timeout
+          if (sdkError.message?.includes('timeout')) {
+            console.log('⏰ Transaction request timed out - user may have canceled');
+          } else if (sdkError.message?.includes('rejected') || sdkError.message?.includes('denied')) {
+            console.log('❌ User rejected the transaction');
+          } else {
+            console.log('🔄 Unknown error, trying to refetch data anyway...');
+            // Still try to refetch in case transaction succeeded
+            setTimeout(() => {
+              refetchAllowance();
+              refetchBalance();
+              refetchStaked();
+            }, 2000);
+          }
+          
           setIsProcessing(false);
         }
       } else if (address) {

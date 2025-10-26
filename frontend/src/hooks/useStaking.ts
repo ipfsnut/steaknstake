@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConnect, useSendCalls } from 'wagmi';
-import { parseEther, formatEther, encodeFunctionData } from 'viem';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConnect } from 'wagmi';
+import { parseEther, formatEther } from 'viem';
 import { CONTRACTS, ERC20_ABI, STEAKNSTAKE_ABI } from '@/lib/contracts';
 import { useFarcasterWallet } from './useFarcasterWallet';
 import { useFarcasterMiniApp } from './useFarcasterMiniApp';
@@ -10,7 +10,6 @@ import { useFarcasterMiniApp } from './useFarcasterMiniApp';
 export function useStaking() {
   const { address, isConnected } = useAccount();
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { sendCalls, data: callsData, isPending: callsPending, error: callsError } = useSendCalls();
   const { connectors } = useConnect();
   const { isFarcasterContext, isWalletConnected, getEthereumProvider } = useFarcasterWallet();
   const { user, isMiniApp, sdk } = useFarcasterMiniApp();
@@ -135,38 +134,23 @@ export function useStaking() {
       setIsProcessing(true);
       const amountWei = parseEther(amount);
       
-      // Check if we're in Farcaster miniapp context
-      if (isMiniApp && isFarcasterContext) {
-        console.log('🔌 Farcaster miniapp context - using sendCalls for batch transaction');
-        
-        // Use sendCalls for Farcaster miniapp - this supports batching
-        sendCalls({
-          calls: [
-            {
-              to: CONTRACTS.STEAK_TOKEN as `0x${string}`,
-              data: encodeFunctionData({
-                abi: ERC20_ABI,
-                functionName: 'approve',
-                args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
-              }),
-            }
-          ]
-        });
-        
-        console.log('✅ Approve transaction submitted via sendCalls');
-      } else {
-        console.log('📝 Regular web context - using writeContract');
-        
-        // Use regular writeContract for web
-        writeContract({
-          address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
-        });
-        
-        console.log('✅ Approve transaction submitted via writeContract');
-      }
+      console.log('💰 Approving STEAK tokens:', {
+        amount,
+        amountWei: amountWei.toString(),
+        tokenAddress: CONTRACTS.STEAK_TOKEN,
+        spenderAddress: CONTRACTS.STEAKNSTAKE,
+        userAddress: address,
+        isConnected
+      });
+
+      writeContract({
+        address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
+      });
+      
+      console.log('✅ Approve transaction submitted');
       
     } catch (err) {
       console.error('❌ Approve failed:', err);
@@ -182,38 +166,22 @@ export function useStaking() {
       setIsProcessing(true);
       const amountWei = parseEther(amount);
       
-      // Check if we're in Farcaster miniapp context
-      if (isMiniApp && isFarcasterContext) {
-        console.log('🔌 Farcaster miniapp context - using sendCalls');
-        
-        // Use sendCalls for Farcaster miniapp
-        sendCalls({
-          calls: [
-            {
-              to: CONTRACTS.STEAKNSTAKE as `0x${string}`,
-              data: encodeFunctionData({
-                abi: STEAKNSTAKE_ABI,
-                functionName: 'stake',
-                args: [amountWei],
-              }),
-            }
-          ]
-        });
-        
-        console.log('✅ Stake transaction submitted via sendCalls');
-      } else {
-        console.log('📝 Regular web context - using writeContract');
-        
-        // Use regular writeContract for web
-        writeContract({
-          address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
-          abi: STEAKNSTAKE_ABI,
-          functionName: 'stake',
-          args: [amountWei],
-        });
-        
-        console.log('✅ Stake transaction submitted via writeContract');
-      }
+      console.log('🥩 Staking STEAK tokens:', {
+        amount,
+        amountWei: amountWei.toString(),
+        contractAddress: CONTRACTS.STEAKNSTAKE,
+        userAddress: address,
+        isConnected
+      });
+
+      writeContract({
+        address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
+        abi: STEAKNSTAKE_ABI,
+        functionName: 'stake',
+        args: [amountWei],
+      });
+      
+      console.log('✅ Stake transaction submitted');
     } catch (err) {
       console.error('Stake failed:', err);
       setIsProcessing(false);
@@ -242,8 +210,8 @@ export function useStaking() {
   return {
     // State
     currentStep,
-    isProcessing: isProcessing || isPending || isConfirming || callsPending,
-    error: error || callsError,
+    isProcessing: isProcessing || isPending || isConfirming,
+    error,
     
     // Data
     allowance: allowance ? formatEther(allowance) : '0',

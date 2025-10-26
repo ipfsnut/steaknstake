@@ -1,19 +1,14 @@
 import { http, createConfig } from 'wagmi'
-import { base, baseSepolia } from 'wagmi/chains'
-import { injected, walletConnect } from 'wagmi/connectors'
+import { base } from 'wagmi/chains'
+import { injected } from 'wagmi/connectors'
 
-// WalletConnect project ID - you'll need to get this from https://cloud.walletconnect.com
-const projectId = process.env.NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID || 'demo-project-id'
-
-// Create a simple connector list - Farcaster integration will work through SDK directly
+// Minimal config to avoid Farcaster connector conflicts
 export const config = createConfig({
-  chains: [base, baseSepolia],
+  chains: [base],
   connectors: [
     injected(),
-    walletConnect({ projectId }),
   ],
   transports: {
     [base.id]: http(),
-    [baseSepolia.id]: http(),
   },
 })

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { stakingApi, tippingApi } from '@/lib/api';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
-import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
+// import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
 import { useStaking } from '@/hooks/useStaking';
 
 interface StakingStats {

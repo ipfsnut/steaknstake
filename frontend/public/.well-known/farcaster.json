@@ -1,0 +1,16 @@
+{
+  "version": "1",
+  "name": "Steak 'n' Stake",
+  "iconUrl": "https://steak.epicdylan.com/icon.png",
+  "homeUrl": "https://steak.epicdylan.com",
+  "imageUrl": "https://steak.epicdylan.com/SteakNStake.png",
+  "buttonTitle": "Start staking",
+  "splashImageUrl": "https://steak.epicdylan.com/splash.png",
+  "splashBackgroundColor": "#000000",
+  "webhookUrl": "https://steak.epicdylan.com/api/webhook",
+  "accountAssociation": {
+    "header": "eyJmaWQiOjg1NzMsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgxOEE4NWFkMzQxYjJENkEyYmQ2N2ZiYjEwNEI0ODI3QjkyMmEyQTNjIn0",
+    "payload": "eyJkb21haW4iOiJzdGVhay5lcGljZHlsYW4uY29tIn0",
+    "signature": "ueC90Bzixwoue6z43di155NEot4lT9JkEoN0SBpbHP970nxBKnvZUVzQU4i68NrWqP5NYLN5kav/cSkHb3I4PBw="
+  }
+}

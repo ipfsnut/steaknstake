@@ -142,11 +142,13 @@ export function useStaking() {
         isConnected
       });
 
+      // Add chain ID explicitly for Farcaster miniapp compatibility
       writeContract({
         address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'approve',
         args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
+        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Approve transaction submitted');
@@ -168,6 +170,8 @@ export function useStaking() {
         setUserError('Insufficient ETH for transaction fees.');
       } else if (err?.message?.includes('network')) {
         setUserError('Network error. Please check your connection.');
+      } else if (err?.message?.includes('getChainId')) {
+        setUserError('Wallet chain detection error. Please try again.');
       } else {
         setUserError(`Failed to approve tokens: ${err?.message || 'Unknown error'}`);
       }
@@ -194,11 +198,13 @@ export function useStaking() {
         isConnected
       });
 
+      // Add chain ID explicitly for Farcaster miniapp compatibility
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'stake',
         args: [amountWei],
+        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Stake transaction submitted');
@@ -221,6 +227,8 @@ export function useStaking() {
         setUserError('Please approve STEAK tokens first.');
       } else if (err?.message?.includes('network')) {
         setUserError('Network error. Please check your connection.');
+      } else if (err?.message?.includes('getChainId')) {
+        setUserError('Wallet chain detection error. Please try again.');
       } else {
         setUserError(`Failed to stake tokens: ${err?.message || 'Unknown error'}`);
       }
@@ -237,11 +245,13 @@ export function useStaking() {
       
       const amountWei = parseEther(amount);
       
+      // Add chain ID explicitly for Farcaster miniapp compatibility
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'unstake',
         args: [amountWei],
+        chainId: 8453, // Base mainnet
       });
     } catch (err: any) {
       console.error('Unstake failed:', err);
@@ -253,6 +263,8 @@ export function useStaking() {
         setUserError('Insufficient staked balance for unstaking.');
       } else if (err?.message?.includes('network')) {
         setUserError('Network error. Please check your connection.');
+      } else if (err?.message?.includes('getChainId')) {
+        setUserError('Wallet chain detection error. Please try again.');
       } else {
         setUserError('Failed to unstake tokens. Please try again.');
       }

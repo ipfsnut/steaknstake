@@ -190,79 +190,40 @@ export default function HomePage() {
     }
   };
 
-  // Fetch data from backend
+  // Initialize with contract data only (no backend dependency)
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        
-        // Fetch real data from backend APIs
-        const [stakingResponse, tippingResponse, leaderboardResponse] = await Promise.all([
-          stakingApi.getStats(),
-          tippingApi.getStats(),
-          stakingApi.getLeaderboard(5)
-        ]);
-
-        if (stakingResponse.data.success) {
-          setStakingStats(stakingResponse.data.data);
-        }
-        
-        if (tippingResponse.data.success) {
-          setTippingStats(tippingResponse.data.data);
-        }
-        
-        if (leaderboardResponse.data.success) {
-          setTopStakers(leaderboardResponse.data.data.leaderboard);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        // Use real contract data when backend is unavailable
-        const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
-        const realTotalSupply = contractTotalSupply ? parseFloat(formatEther(contractTotalSupply)) : 0;
-        
-        // Get user's actual tip data from contract
-        const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
-        const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
-        
-        setStakingStats({
-          totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0, // Estimate based on average stake
-          totalStaked: realTotalStaked,
-          tipsEarned: userAllocatedTips, // Total tips user has been allocated
-          tipsAvailable: userClaimableTips // User's claimable balance (allocated - claimed)
-        });
-        
-        // Create a simple leaderboard with real user if they have stakes
-        const leaderboard = [];
-        if (contractStakedAmount && parseFloat(contractStakedAmount) > 0) {
-          leaderboard.push({
-            rank: 1,
-            walletAddress: address || '0x18A85ad341b2D6A2bd67fbb104B4827B922a2A3c',
-            farcasterUsername: user?.username || 'epicdylan',
-            stakedAmount: parseFloat(contractStakedAmount),
-            availableTipBalance: parseFloat(contractStakedAmount) * 0.05,
-            totalRewardsEarned: parseFloat(contractStakedAmount) * 0.1
-          });
-        }
-        setTopStakers(leaderboard);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+    setLoading(false);
   }, []);
 
-  // Update stats when tip data changes
+  // Update all stats when contract data changes
   useEffect(() => {
+    const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
+    const realTotalSupply = contractTotalSupply ? parseFloat(formatEther(contractTotalSupply)) : 0;
     const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
     const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
     
-    setStakingStats(prev => ({
-      ...prev,
+    // Update platform stats with real contract data
+    setStakingStats({
+      totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0,
+      totalStaked: realTotalStaked,
       tipsEarned: userAllocatedTips,
       tipsAvailable: userClaimableTips
-    }));
-  }, [allocatedTips, claimableAmount]);
+    });
+    
+    // Create leaderboard with real user if they have stakes
+    const leaderboard = [];
+    if (contractStakedAmount && parseFloat(contractStakedAmount) > 0) {
+      leaderboard.push({
+        rank: 1,
+        walletAddress: address || '0x18A85ad341b2D6A2bd67fbb104B4827B922a2A3c',
+        farcasterUsername: user?.username || 'epicdylan',
+        stakedAmount: parseFloat(contractStakedAmount),
+        availableTipBalance: userClaimableTips, // Use real claimable amount
+        totalRewardsEarned: userAllocatedTips // Use real allocated amount
+      });
+    }
+    setTopStakers(leaderboard);
+  }, [contractTotalStaked, contractTotalSupply, allocatedTips, claimableAmount, contractStakedAmount, address, user]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -365,46 +326,12 @@ export default function HomePage() {
   };
 
   const refreshData = async () => {
-    try {
-      setLoading(true);
-      
-      // Since backend is down, just refresh contract data and use fallback stats
-      refetchData();
-      
-      // Use real contract data as fallback when backend fails
-      const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
-      const realTotalSupply = contractTotalSupply ? parseFloat(formatEther(contractTotalSupply)) : 0;
-      
-      // Get user's actual tip data from contract
-      const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
-      const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
-      
-      setStakingStats({
-        totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0,
-        totalStaked: realTotalStaked,
-        tipsEarned: userAllocatedTips, // Total tips user has been allocated
-        tipsAvailable: userClaimableTips // User's claimable balance (allocated - claimed)
-      });
-      
-      // Create leaderboard with real user if they have stakes
-      const leaderboard = [];
-      if (contractStakedAmount && parseFloat(contractStakedAmount) > 0) {
-        leaderboard.push({
-          rank: 1,
-          walletAddress: address || '0x18A85ad341b2D6A2bd67fbb104B4827B922a2A3c',
-          farcasterUsername: user?.username || 'epicdylan',
-          stakedAmount: parseFloat(contractStakedAmount),
-          availableTipBalance: parseFloat(contractStakedAmount) * 0.05,
-          totalRewardsEarned: parseFloat(contractStakedAmount) * 0.1
-        });
-      }
-      setTopStakers(leaderboard);
-      
-    } catch (error) {
-      console.error('Error refreshing data:', error);
-    } finally {
-      setLoading(false);
-    }
+    setLoading(true);
+    
+    // Refresh contract data - the useEffect will handle updating the UI
+    refetchData();
+    
+    setLoading(false);
   };
 
   const renderContent = () => {

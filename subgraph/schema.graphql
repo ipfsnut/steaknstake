@@ -1,0 +1,73 @@
+type User @entity {
+  id: ID!                           # User wallet address
+  stakedAmount: BigInt!             # Current staked amount
+  totalStaked: BigInt!              # Lifetime total staked
+  totalUnstaked: BigInt!            # Lifetime total unstaked
+  tipsReceived: BigInt!             # Total tips allocated to user
+  tipsClaimed: BigInt!              # Total tips claimed by user
+  tipsAvailable: BigInt!            # Tips available to claim (received - claimed)
+  firstStakeTimestamp: BigInt!      # When user first staked
+  lastStakeTimestamp: BigInt!       # When user last staked
+  stakeEvents: [StakeEvent!]! @derivedFrom(field: "user")
+  tipAllocations: [TipAllocation!]! @derivedFrom(field: "user")
+  claimEvents: [ClaimEvent!]! @derivedFrom(field: "user")
+}
+
+type StakeEvent @entity {
+  id: ID!                           # Transaction hash + log index
+  user: User!                       # User who staked/unstaked
+  amount: BigInt!                   # Amount staked/unstaked
+  type: StakeEventType!             # STAKE or UNSTAKE
+  timestamp: BigInt!                # Block timestamp
+  blockNumber: BigInt!              # Block number
+  transactionHash: Bytes!           # Transaction hash
+  newTotal: BigInt!                 # User's total staked after this event
+}
+
+enum StakeEventType {
+  STAKE
+  UNSTAKE
+}
+
+type TipAllocation @entity {
+  id: ID!                           # Transaction hash + log index
+  user: User!                       # User who received tips
+  amount: BigInt!                   # Amount of tips allocated
+  timestamp: BigInt!                # Block timestamp
+  blockNumber: BigInt!              # Block number
+  transactionHash: Bytes!           # Transaction hash
+}
+
+type ClaimEvent @entity {
+  id: ID!                           # Transaction hash + log index
+  user: User!                       # User who claimed tips
+  amount: BigInt!                   # Amount claimed
+  action: ClaimAction!              # How tips were claimed
+  timestamp: BigInt!                # Block timestamp
+  blockNumber: BigInt!              # Block number
+  transactionHash: Bytes!           # Transaction hash
+}
+
+enum ClaimAction {
+  TO_WALLET
+  SPLIT_HALF
+}
+
+type LeaderboardEntry @entity {
+  id: ID!                           # User address
+  user: User!                       # Reference to user
+  rank: Int!                        # Current rank (calculated)
+  stakedAmount: BigInt!             # Current staked amount
+  tipsReceived: BigInt!             # Total tips received
+  score: BigInt!                    # Calculated score for ranking
+  lastUpdated: BigInt!              # Last update timestamp
+}
+
+type GlobalStats @entity {
+  id: ID!                           # Single entity with id "global"
+  totalStaked: BigInt!              # Total amount staked across all users
+  totalUsers: Int!                  # Total number of users who have staked
+  totalTipsAllocated: BigInt!       # Total tips allocated
+  totalTipsClaimed: BigInt!         # Total tips claimed
+  lastUpdated: BigInt!              # Last update timestamp
+}

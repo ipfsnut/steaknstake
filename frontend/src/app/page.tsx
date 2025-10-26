@@ -62,6 +62,8 @@ export default function HomePage() {
   const [showClaimHelp, setShowClaimHelp] = useState(false);
   const [showStatsHelp, setShowStatsHelp] = useState(false);
   const [userClaimableTips, setUserClaimableTips] = useState(0);
+  const [userAllowanceBalance, setUserAllowanceBalance] = useState(0); // Track tipping allowances
+  const [backendUserPosition, setBackendUserPosition] = useState<UserPosition | null>(null);
 
   // Direct wagmi wallet connection
   const { address, isConnected } = useAccount();
@@ -192,14 +194,38 @@ export default function HomePage() {
     setLoading(false);
   }, []);
 
+  // Fetch user position from backend when wallet connects
+  useEffect(() => {
+    const fetchUserPosition = async () => {
+      if (address) {
+        try {
+          const response = await stakingApi.getPosition(address);
+          if (response.data.success) {
+            setBackendUserPosition(response.data.data);
+          }
+        } catch (error) {
+          console.warn('Could not fetch user position from backend:', error);
+        }
+      }
+    };
+
+    fetchUserPosition();
+  }, [address]);
+
   // Update all stats when contract data changes
   useEffect(() => {
     const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
     const userLifetimeTips = totalTipsReceived ? parseFloat(formatEther(totalTipsReceived)) : 0;
     const claimableTipsAmount = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
     
-    // Update state for use in JSX
-    setUserClaimableTips(claimableTipsAmount);
+    // Update state for use in JSX with real backend data if available
+    if (backendUserPosition) {
+      setUserClaimableTips(backendUserPosition.availableTipBalance);
+      setUserAllowanceBalance(backendUserPosition.availableTipBalance);
+    } else {
+      setUserClaimableTips(0);
+      setUserAllowanceBalance(0);
+    }
     
     // Debug logging
     console.log('📊 Contract data update:', {
@@ -217,11 +243,13 @@ export default function HomePage() {
     const totalStakers = realTotalStaked > 0 ? 1 : 0; // For now, simple calculation
     
     // Update platform stats with real contract data
+    // Note: User hasn't actually received tips from others yet, so tipsEarned should be 0
+    // The 1000 allocated was meant as allowances to tip others, not tips received
     setStakingStats({
       totalStakers,
       totalStaked: realTotalStaked,
-      tipsEarned: userLifetimeTips, // Lifetime cumulative tips received
-      tipsAvailable: claimableTipsAmount // Current claimable balance
+      tipsEarned: 0, // Show 0 until user actually receives tips from others
+      tipsAvailable: backendUserPosition?.availableTipBalance || 0
     });
     
     // Create leaderboard with real user if they have stakes
@@ -232,12 +260,12 @@ export default function HomePage() {
         walletAddress: address || '0x18A85ad341b2D6A2bd67fbb104B4827B922a2A3c',
         farcasterUsername: user?.username || 'epicdylan',
         stakedAmount: parseFloat(contractStakedAmount),
-        availableTipBalance: claimableTipsAmount, // Use real claimable amount
-        totalRewardsEarned: userLifetimeTips // Use real lifetime tips amount
+        availableTipBalance: backendUserPosition?.availableTipBalance || 0,
+        totalRewardsEarned: 0 // User hasn't received tips from others yet
       });
     }
     setTopStakers(leaderboard);
-  }, [contractTotalStaked, totalTipsReceived, claimableAmount, contractStakedAmount, address, user]);
+  }, [contractTotalStaked, totalTipsReceived, claimableAmount, contractStakedAmount, address, user, backendUserPosition]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -346,6 +374,56 @@ export default function HomePage() {
     refetchData();
     
     setLoading(false);
+  };
+
+  // Function to handle tip sending via backend API
+  const handleTipSent = async (recipientFid: number, recipientUsername: string, tipAmount: number, castHash?: string, castUrl?: string, message?: string) => {
+    if (!address) {
+      console.error('Wallet not connected');
+      return;
+    }
+
+    try {
+      const response = await tippingApi.sendTip({
+        tipperWalletAddress: address,
+        recipientFid,
+        recipientUsername,
+        tipAmount,
+        castHash,
+        castUrl,
+        message
+      });
+
+      if (response.data.success) {
+        // Update local state immediately
+        setUserAllowanceBalance(prev => Math.max(0, prev - tipAmount));
+        setBackendUserPosition(prev => prev ? {
+          ...prev,
+          availableTipBalance: Math.max(0, prev.availableTipBalance - tipAmount)
+        } : null);
+        
+        console.log(`💰 Tip sent successfully: ${tipAmount} $STEAK to @${recipientUsername}`);
+        
+        // Refresh user position from backend
+        setTimeout(async () => {
+          try {
+            const positionResponse = await stakingApi.getPosition(address);
+            if (positionResponse.data.success) {
+              setBackendUserPosition(positionResponse.data.data);
+            }
+          } catch (error) {
+            console.warn('Failed to refresh user position after tip:', error);
+          }
+        }, 1000);
+        
+        return response.data;
+      } else {
+        throw new Error(response.data.error || 'Failed to send tip');
+      }
+    } catch (error) {
+      console.error('Error sending tip:', error);
+      throw error;
+    }
   };
 
   const renderContent = () => {

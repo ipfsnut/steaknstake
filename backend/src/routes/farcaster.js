@@ -166,27 +166,146 @@ async function handleCastCreated(castData) {
       text
     });
     
-    // Store the tip in database (this would normally require sender to have staking balance)
-    // For now, just log the detection - actual tip processing requires user to have balance
-    
-    // Respond with confirmation
-    await postTipConfirmation(hash, author.username, parent_author.username, tipAmount);
+    // Process the actual tip through the tipping system
+    await processTipFromFarcaster({
+      hash,
+      tipperFid: author.fid,
+      tipperUsername: author.username,
+      recipientFid: parent_author.fid,
+      recipientUsername: parent_author.username,
+      tipAmount,
+      castText: text
+    });
     
   } catch (error) {
     logger.error('Error handling cast created:', error);
   }
 }
 
-// Helper function to post tip confirmation
-async function postTipConfirmation(parentHash, tipperUsername, recipientUsername, amount) {
+// Process tip detected from Farcaster webhook
+async function processTipFromFarcaster(tipData) {
+  const { hash, tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount, castText } = tipData;
+  
   try {
-    const confirmationText = `🥩 Tip detected! @${tipperUsername} wants to tip ${amount} $STEAK to @${recipientUsername}! 
+    const client = await db.getClient();
+    
+    // Find tipper by Farcaster FID
+    const tipperResult = await client.query(
+      'SELECT * FROM users WHERE farcaster_fid = $1',
+      [tipperFid]
+    );
+    
+    if (tipperResult.rows.length === 0) {
+      logger.warn(`Tip failed: Tipper FID ${tipperFid} (@${tipperUsername}) not found in database`);
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Please connect your wallet at steak.epicdylan.com first!');
+      client.release();
+      return;
+    }
+    
+    const tipper = tipperResult.rows[0];
+    
+    // Check if tipper has sufficient balance
+    const positionResult = await client.query(
+      'SELECT * FROM staking_positions WHERE user_id = $1',
+      [tipper.id]
+    );
+    
+    if (positionResult.rows.length === 0 || parseFloat(positionResult.rows[0].available_tip_balance) < tipAmount) {
+      const currentBalance = positionResult.rows.length > 0 ? parseFloat(positionResult.rows[0].available_tip_balance) : 0;
+      logger.warn(`Tip failed: Insufficient balance. ${tipperUsername} has ${currentBalance} but tried to tip ${tipAmount}`);
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, `Insufficient balance! You have ${currentBalance.toFixed(2)} $STEAK available to tip.`);
+      client.release();
+      return;
+    }
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Deduct from tipper's balance
+      await client.query(`
+        UPDATE staking_positions 
+        SET 
+          available_tip_balance = available_tip_balance - $1,
+          updated_at = $2
+        WHERE user_id = $3
+      `, [tipAmount, new Date(), tipper.id]);
+      
+      // Create tip record
+      const tipResult = await client.query(`
+        INSERT INTO farcaster_tips 
+        (tipper_user_id, recipient_fid, recipient_username, tip_amount, cast_hash, cast_url, message, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, 'SENT')
+        RETURNING *
+      `, [
+        tipper.id,
+        recipientFid,
+        recipientUsername,
+        tipAmount,
+        hash,
+        `https://warpcast.com/~/conversations/${hash}`,
+        castText
+      ]);
+      
+      await client.query('COMMIT');
+      
+      logger.info(`✅ Tip processed successfully: ${tipAmount} $STEAK from @${tipperUsername} to @${recipientUsername}`);
+      
+      // Post success confirmation
+      await postTipSuccess(hash, tipperUsername, recipientUsername, tipAmount, tipResult.rows[0].id);
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    
+  } catch (error) {
+    logger.error('Error processing Farcaster tip:', error);
+    await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Processing error - please try again!');
+  }
+}
 
-To complete this tip, you need:
-1. Staked $STEAK balance in SteakNStake
-2. Visit steak.epicdylan.com to stake first!
+// Helper function to post successful tip confirmation
+async function postTipSuccess(parentHash, tipperUsername, recipientUsername, amount, tipId) {
+  try {
+    const confirmationText = `🎉 Tip sent! @${tipperUsername} tipped ${amount} $STEAK to @${recipientUsername}!
 
-Tips come from your staking rewards - the more you stake, the more you can tip! 🔥`;
+💝 @${recipientUsername}, visit steak.epicdylan.com to claim your tip!
+🆔 Tip ID: ${tipId}`;
+
+    await postToFarcaster(confirmationText, parentHash);
+  } catch (error) {
+    logger.error('Error posting tip success:', error);
+  }
+}
+
+// Helper function to post tip failure message
+async function postTipFailure(parentHash, tipperUsername, recipientUsername, amount, reason) {
+  try {
+    const failureText = `❌ Tip failed! @${tipperUsername} tried to tip ${amount} $STEAK to @${recipientUsername}
+
+${reason}
+
+Visit steak.epicdylan.com to stake and earn tip allowances! 🥩`;
+
+    await postToFarcaster(failureText, parentHash);
+  } catch (error) {
+    logger.error('Error posting tip failure:', error);
+  }
+}
+
+// Generic function to post messages to Farcaster
+async function postToFarcaster(text, parentHash = null) {
+  try {
+    const requestBody = {
+      signer_uuid: process.env.NEYNAR_SIGNER_UUID || '1256d313-59b6-40fc-8939-ed5bb0d5ed8a',
+      text: text
+    };
+    
+    if (parentHash) {
+      requestBody.parent = parentHash;
+    }
 
     const response = await fetch('https://api.neynar.com/v2/farcaster/cast', {
       method: 'POST',
@@ -195,21 +314,21 @@ Tips come from your staking rewards - the more you stake, the more you can tip! 
         'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC',
         'content-type': 'application/json'
       },
-      body: JSON.stringify({
-        signer_uuid: process.env.NEYNAR_SIGNER_UUID || '1256d313-59b6-40fc-8939-ed5bb0d5ed8a',
-        text: confirmationText,
-        parent: parentHash
-      })
+      body: JSON.stringify(requestBody)
     });
     
     if (response.ok) {
-      logger.info('Tip confirmation posted successfully');
+      logger.info('Message posted to Farcaster successfully');
+      return await response.json();
     } else {
-      logger.error('Failed to post tip confirmation:', await response.text());
+      const errorText = await response.text();
+      logger.error('Failed to post to Farcaster:', errorText);
+      throw new Error(`Farcaster API error: ${errorText}`);
     }
     
   } catch (error) {
-    logger.error('Error posting tip confirmation:', error);
+    logger.error('Error posting to Farcaster:', error);
+    throw error;
   }
 }
 

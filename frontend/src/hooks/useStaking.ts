@@ -6,6 +6,7 @@ import { parseEther, formatEther } from 'viem';
 import { CONTRACTS, ERC20_ABI, STEAKNSTAKE_ABI } from '@/lib/contracts';
 import { useFarcasterWallet } from './useFarcasterWallet';
 import { useFarcasterMiniApp } from './useFarcasterMiniApp';
+import { approveTokens, stakeTokens as farcasterStakeTokens, FarcasterTransactionError } from '@/lib/farcaster-transactions';
 
 export function useStaking() {
   const { address, isConnected } = useAccount();
@@ -132,11 +133,9 @@ export function useStaking() {
     
     try {
       setIsProcessing(true);
-      const amountWei = parseEther(amount);
       
       console.log('💰 Approving STEAK tokens:', {
         amount,
-        amountWei: amountWei.toString(),
         tokenAddress: CONTRACTS.STEAK_TOKEN,
         spenderAddress: CONTRACTS.STEAKNSTAKE,
         userAddress: address,
@@ -144,18 +143,31 @@ export function useStaking() {
         isConnected
       });
 
-      // In Farcaster context, we don't need to "connect" in the traditional sense
-      // The wagmi writeContract should work directly with the Farcaster provider
+      // Use Farcaster SDK directly when in Farcaster context
       if (isFarcasterContext) {
-        console.log('🔌 Farcaster context detected - using Farcaster wallet directly');
-        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name, type: c.type })));
+        console.log('🔌 Farcaster context detected - using Farcaster SDK directly');
         
-        // In Farcaster miniapp context, wagmi should automatically use the Farcaster provider
-        console.log('💫 Proceeding with transaction - Farcaster will handle wallet prompting');
+        try {
+          const result = await approveTokens(amount);
+          console.log('✅ Farcaster approve transaction sent:', result);
+          
+          // Simulate successful completion for now
+          setTimeout(() => {
+            setCurrentStep('stake');
+            setIsProcessing(false);
+          }, 2000);
+          
+          return;
+        } catch (farcasterError) {
+          console.error('❌ Farcaster approve failed:', farcasterError);
+          setIsProcessing(false);
+          throw farcasterError;
+        }
       }
 
-      // Use wagmi writeContract - this works in both web and Farcaster contexts
+      // Use wagmi writeContract for regular web context
       console.log('📝 Using wagmi writeContract for approval...');
+      const amountWei = parseEther(amount);
       
       writeContract({
         address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
@@ -178,30 +190,42 @@ export function useStaking() {
     
     try {
       setIsProcessing(true);
-      const amountWei = parseEther(amount);
       
       console.log('🥩 Staking STEAK tokens:', {
         amount,
-        amountWei: amountWei.toString(),
         contractAddress: CONTRACTS.STEAKNSTAKE,
         userAddress: address,
         context: isFarcasterContext ? 'Farcaster' : 'Web',
         isConnected
       });
 
-      // In Farcaster context, we don't need to "connect" in the traditional sense
-      // The wagmi writeContract should work directly with the Farcaster provider
+      // Use Farcaster SDK directly when in Farcaster context
       if (isFarcasterContext) {
-        console.log('🔌 Farcaster context detected - using Farcaster wallet directly');
-        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name, type: c.type })));
+        console.log('🔌 Farcaster context detected - using Farcaster SDK directly');
         
-        // In Farcaster miniapp context, wagmi should automatically use the Farcaster provider
-        console.log('💫 Proceeding with transaction - Farcaster will handle wallet prompting');
+        try {
+          const result = await farcasterStakeTokens(amount);
+          console.log('✅ Farcaster stake transaction sent:', result);
+          
+          // Simulate successful completion for now
+          setTimeout(() => {
+            setCurrentStep('completed');
+            setIsProcessing(false);
+            setTimeout(() => setCurrentStep('approve'), 3000);
+          }, 2000);
+          
+          return;
+        } catch (farcasterError) {
+          console.error('❌ Farcaster stake failed:', farcasterError);
+          setIsProcessing(false);
+          throw farcasterError;
+        }
       }
 
+      // Use wagmi writeContract for regular web context
       console.log('📝 Using wagmi writeContract for staking...');
+      const amountWei = parseEther(amount);
       
-      // Use wagmi writeContract - this works in both web and Farcaster contexts
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,

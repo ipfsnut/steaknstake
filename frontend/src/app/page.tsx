@@ -868,9 +868,9 @@ export default function HomePage() {
                 <h3 className="font-bold text-orange-800 mb-2">About Claiming</h3>
                 <div className="text-sm text-orange-700 space-y-1">
                   <p>• Claim tips you've received from others</p>
-                  <p>• Choose full amount or split 50/50</p>
-                  <p>• All claimed tips go to your wallet</p>
-                  <p>• You can then stake claimed tokens if desired</p>
+                  <p>• <strong>Claim Full:</strong> 100% goes to your wallet</p>
+                  <p>• <strong>Split 50/50:</strong> 50% to wallet, 50% auto-staked</p>
+                  <p>• Auto-staked tokens start earning rewards immediately</p>
                 </div>
               </div>
             )}
@@ -897,14 +897,14 @@ export default function HomePage() {
               <h3 className="text-xl font-bold mb-4">Claim Options</h3>
               <div className="space-y-3">
                 <button className="w-full p-3 border-2 border-green-500 text-green-700 rounded-lg font-medium hover:bg-green-50">
-                  💰 Claim Full Amount
+                  💰 Claim Full Amount to Wallet
                 </button>
                 <button className="w-full p-3 border-2 border-purple-500 text-purple-700 rounded-lg font-medium hover:bg-purple-50">
-                  ⚖️ Split 50/50 to Wallet
+                  ⚖️ Split: 50% Wallet + 50% Auto-Stake
                 </button>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">
-                    💡 <strong>Want to stake?</strong> Claim to wallet first, then use the Stake tab to stake your tokens.
+                    💡 <strong>Smart tip:</strong> Split option lets you claim some and start earning rewards on the rest immediately!
                   </p>
                 </div>
               </div>

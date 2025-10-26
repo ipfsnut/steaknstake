@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const winston = require('winston');
+const fetch = require('node-fetch');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -97,19 +98,16 @@ router.get('/user/:fid', async (req, res) => {
   }
 });
 
-// POST /api/farcaster/webhook - Handle Farcaster webhooks (for future integration)
+// POST /api/farcaster/webhook - Handle Farcaster webhooks for tip detection
 router.post('/webhook', async (req, res) => {
   try {
     const { type, data } = req.body;
     
     logger.info('Received Farcaster webhook:', { type, data });
     
-    // Here you would handle different webhook types
-    // For example: cast mentions, follows, etc.
     switch (type) {
       case 'cast.created':
-        // Handle new cast creation
-        // Check if it mentions our bot or contains tip commands
+        await handleCastCreated(data);
         break;
       case 'reaction.added':
         // Handle reactions to posts
@@ -131,6 +129,89 @@ router.post('/webhook', async (req, res) => {
     });
   }
 });
+
+// Helper function to parse and process tip commands from casts
+async function handleCastCreated(castData) {
+  try {
+    const { hash, author, text, parent_hash, parent_author } = castData;
+    
+    // Check if this is a reply with a tip command
+    if (!parent_hash || !parent_author) return;
+    
+    // Look for tip patterns: "25 $STEAK", "$STEAK 10", "@steaknstake 5 $STEAK"
+    const tipPatterns = [
+      /(\d+(?:\.\d+)?)\s*\$STEAK/i,
+      /\$STEAK\s*(\d+(?:\.\d+)?)/i,
+      /@steaknstake\s+(\d+(?:\.\d+)?)\s*\$STEAK/i
+    ];
+    
+    let tipAmount = null;
+    for (const pattern of tipPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        tipAmount = parseFloat(match[1]);
+        break;
+      }
+    }
+    
+    if (!tipAmount || tipAmount <= 0) return;
+    
+    logger.info('Tip detected:', {
+      hash,
+      tipperFid: author.fid,
+      tipperUsername: author.username,
+      recipientFid: parent_author.fid,
+      recipientUsername: parent_author.username,
+      amount: tipAmount,
+      text
+    });
+    
+    // Store the tip in database (this would normally require sender to have staking balance)
+    // For now, just log the detection - actual tip processing requires user to have balance
+    
+    // Respond with confirmation
+    await postTipConfirmation(hash, author.username, parent_author.username, tipAmount);
+    
+  } catch (error) {
+    logger.error('Error handling cast created:', error);
+  }
+}
+
+// Helper function to post tip confirmation
+async function postTipConfirmation(parentHash, tipperUsername, recipientUsername, amount) {
+  try {
+    const confirmationText = `🥩 Tip detected! @${tipperUsername} wants to tip ${amount} $STEAK to @${recipientUsername}! 
+
+To complete this tip, you need:
+1. Staked $STEAK balance in SteakNStake
+2. Visit steak.epicdylan.com to stake first!
+
+Tips come from your staking rewards - the more you stake, the more you can tip! 🔥`;
+
+    const response = await fetch('https://api.neynar.com/v2/farcaster/cast', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        signer_uuid: process.env.NEYNAR_SIGNER_UUID || '1256d313-59b6-40fc-8939-ed5bb0d5ed8a',
+        text: confirmationText,
+        parent: parentHash
+      })
+    });
+    
+    if (response.ok) {
+      logger.info('Tip confirmation posted successfully');
+    } else {
+      logger.error('Failed to post tip confirmation:', await response.text());
+    }
+    
+  } catch (error) {
+    logger.error('Error posting tip confirmation:', error);
+  }
+}
 
 // GET /api/farcaster/cast/:hash - Get cast info and associated tips
 router.get('/cast/:hash', async (req, res) => {

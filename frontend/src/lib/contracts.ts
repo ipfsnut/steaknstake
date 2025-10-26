@@ -110,5 +110,25 @@ export const STEAKNSTAKE_ABI = [
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+    "name": "totalTipsReceived",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+    "name": "getUserStats",
+    "outputs": [
+      {"internalType": "uint256", "name": "staked", "type": "uint256"},
+      {"internalType": "uint256", "name": "claimableTips", "type": "uint256"},
+      {"internalType": "uint256", "name": "totalTipsReceived_", "type": "uint256"},
+      {"internalType": "uint256", "name": "lifetimeStaked_", "type": "uint256"},
+      {"internalType": "uint256", "name": "stakeTimestamp", "type": "uint256"}
+    ],
+    "stateMutability": "view",
+    "type": "function"
   }
 ] as const;

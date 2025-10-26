@@ -61,6 +61,7 @@ export default function HomePage() {
   const [showTipHelp, setShowTipHelp] = useState(false);
   const [showClaimHelp, setShowClaimHelp] = useState(false);
   const [showStatsHelp, setShowStatsHelp] = useState(false);
+  const [userClaimableTips, setUserClaimableTips] = useState(0);
 
   // Direct wagmi wallet connection
   const { address, isConnected } = useAccount();
@@ -87,11 +88,11 @@ export default function HomePage() {
 
   // Contract doesn't have totalSupply - we'll calculate stakers differently
 
-  // Read user's allocated tips (total earned)
-  const { data: allocatedTips } = useReadContract({
+  // Read user's lifetime tips received (total earned over time)
+  const { data: totalTipsReceived } = useReadContract({
     address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
     abi: STEAKNSTAKE_ABI,
-    functionName: 'allocatedTips',
+    functionName: 'totalTipsReceived',
     args: address ? [address] : undefined,
     query: {
       enabled: !!address
@@ -194,18 +195,21 @@ export default function HomePage() {
   // Update all stats when contract data changes
   useEffect(() => {
     const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
-    const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
-    const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
+    const userLifetimeTips = totalTipsReceived ? parseFloat(formatEther(totalTipsReceived)) : 0;
+    const claimableTipsAmount = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
+    
+    // Update state for use in JSX
+    setUserClaimableTips(claimableTipsAmount);
     
     // Debug logging
     console.log('📊 Contract data update:', {
       address,
       contractTotalStaked: contractTotalStaked?.toString(),
       realTotalStaked,
-      allocatedTips: allocatedTips?.toString(),
-      userAllocatedTips,
+      totalTipsReceived: totalTipsReceived?.toString(),
+      userLifetimeTips,
       claimableAmount: claimableAmount?.toString(),
-      userClaimableTips,
+      claimableTipsAmount,
       contractStakedAmount
     });
     
@@ -216,8 +220,8 @@ export default function HomePage() {
     setStakingStats({
       totalStakers,
       totalStaked: realTotalStaked,
-      tipsEarned: userAllocatedTips,
-      tipsAvailable: userClaimableTips
+      tipsEarned: userLifetimeTips, // Lifetime cumulative tips received
+      tipsAvailable: claimableTipsAmount // Current claimable balance
     });
     
     // Create leaderboard with real user if they have stakes
@@ -228,12 +232,12 @@ export default function HomePage() {
         walletAddress: address || '0x18A85ad341b2D6A2bd67fbb104B4827B922a2A3c',
         farcasterUsername: user?.username || 'epicdylan',
         stakedAmount: parseFloat(contractStakedAmount),
-        availableTipBalance: userClaimableTips, // Use real claimable amount
-        totalRewardsEarned: userAllocatedTips // Use real allocated amount
+        availableTipBalance: claimableTipsAmount, // Use real claimable amount
+        totalRewardsEarned: userLifetimeTips // Use real lifetime tips amount
       });
     }
     setTopStakers(leaderboard);
-  }, [contractTotalStaked, allocatedTips, claimableAmount, contractStakedAmount, address, user]);
+  }, [contractTotalStaked, totalTipsReceived, claimableAmount, contractStakedAmount, address, user]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -421,7 +425,7 @@ export default function HomePage() {
                       <div className="text-sm text-gray-500">$STEAK Staked (Contract: {contractStakedAmount})</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-purple-600">{userPosition?.availableTipBalance || 0}</div>
+                      <div className="text-2xl font-bold text-purple-600">{userClaimableTips?.toFixed(2) || '0.00'}</div>
                       <div className="text-sm text-gray-500">Available to Tip</div>
                     </div>
                   </div>
@@ -606,7 +610,7 @@ export default function HomePage() {
                       <div className="text-sm text-gray-500">$STEAK Staked (Contract: {contractStakedAmount})</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-purple-600">{userPosition?.availableTipBalance || 0}</div>
+                      <div className="text-2xl font-bold text-purple-600">{userClaimableTips?.toFixed(2) || '0.00'}</div>
                       <div className="text-sm text-gray-500">Available to Tip</div>
                     </div>
                   </div>
@@ -789,7 +793,7 @@ export default function HomePage() {
               <h3 className="text-xl font-bold mb-4">🔥 Current Allowance</h3>
               <div className="text-center">
                 <div className="text-4xl font-bold text-green-600 mb-2">
-                  {userPosition?.availableTipBalance?.toFixed(2) || '0.00'}
+                  {userClaimableTips?.toFixed(2) || '0.00'}
                 </div>
                 <div className="text-gray-500">$STEAK available to tip</div>
                 {!walletAddress && !isMiniApp && (

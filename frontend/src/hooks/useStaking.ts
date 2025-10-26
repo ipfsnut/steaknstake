@@ -161,7 +161,7 @@ export function useStaking() {
               try {
                 const receipt = await provider.request({
                   method: 'eth_getTransactionReceipt',
-                  params: [txHash]
+                  params: [txHash as `0x${string}`]
                 });
                 
                 if (receipt && receipt.status) {
@@ -191,9 +191,10 @@ export function useStaking() {
           console.error('❌ Farcaster wallet provider error:', sdkError);
           
           // Check if user canceled or if it's a timeout
-          if (sdkError.message?.includes('timeout')) {
+          const errorMessage = (sdkError as Error)?.message || '';
+          if (errorMessage.includes('timeout')) {
             console.log('⏰ Transaction request timed out - user may have canceled');
-          } else if (sdkError.message?.includes('rejected') || sdkError.message?.includes('denied')) {
+          } else if (errorMessage.includes('rejected') || errorMessage.includes('denied')) {
             console.log('❌ User rejected the transaction');
           } else {
             console.log('🔄 Unknown error, trying to refetch data anyway...');
@@ -291,7 +292,7 @@ export function useStaking() {
               try {
                 const receipt = await provider.request({
                   method: 'eth_getTransactionReceipt',
-                  params: [txHash]
+                  params: [txHash as `0x${string}`]
                 });
                 
                 if (receipt && receipt.status) {
@@ -323,9 +324,10 @@ export function useStaking() {
           console.error('❌ Farcaster wallet provider error:', sdkError);
           
           // Check if user canceled or if it's a timeout
-          if (sdkError.message?.includes('timeout')) {
+          const errorMessage = (sdkError as Error)?.message || '';
+          if (errorMessage.includes('timeout')) {
             console.log('⏰ Transaction request timed out - user may have canceled');
-          } else if (sdkError.message?.includes('rejected') || sdkError.message?.includes('denied')) {
+          } else if (errorMessage.includes('rejected') || errorMessage.includes('denied')) {
             console.log('❌ User rejected the transaction');
           } else {
             console.log('🔄 Unknown error, trying to refetch data anyway...');

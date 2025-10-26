@@ -50,7 +50,23 @@ export function useWalletConnection() {
     const autoConnectFarcaster = async () => {
       if (isFarcasterContext && !isConnected) {
         console.log('🔄 Auto-connecting Farcaster wallet...')
-        const farcasterConnector = connectors.find(c => c.id === 'farcasterMiniApp')
+        // Try multiple possible connector IDs for Farcaster
+        const possibleIds = ['farcasterMiniApp', 'farcaster', 'miniapp', 'embedded'];
+        let farcasterConnector = null;
+        
+        for (const id of possibleIds) {
+          farcasterConnector = connectors.find(c => c.id === id);
+          if (farcasterConnector) break;
+        }
+        
+        // If no exact match, try finding by name or type
+        if (!farcasterConnector) {
+          farcasterConnector = connectors.find(c => 
+            c.name?.toLowerCase().includes('farcaster') ||
+            c.type?.toLowerCase().includes('farcaster') ||
+            c.type?.toLowerCase().includes('miniapp')
+          );
+        }
         if (farcasterConnector) {
           try {
             await connect({ connector: farcasterConnector })
@@ -72,7 +88,23 @@ export function useWalletConnection() {
       // Use Farcaster connector in miniapp context
       if (isFarcasterContext) {
         console.log('🔌 Using Farcaster wagmi connector...')
-        const farcasterConnector = connectors.find(c => c.id === 'farcasterMiniApp')
+        // Try multiple possible connector IDs for Farcaster
+        const possibleIds = ['farcasterMiniApp', 'farcaster', 'miniapp', 'embedded'];
+        let farcasterConnector = null;
+        
+        for (const id of possibleIds) {
+          farcasterConnector = connectors.find(c => c.id === id);
+          if (farcasterConnector) break;
+        }
+        
+        // If no exact match, try finding by name or type
+        if (!farcasterConnector) {
+          farcasterConnector = connectors.find(c => 
+            c.name?.toLowerCase().includes('farcaster') ||
+            c.type?.toLowerCase().includes('farcaster') ||
+            c.type?.toLowerCase().includes('miniapp')
+          );
+        }
         if (farcasterConnector) {
           await connect({ connector: farcasterConnector })
           return true

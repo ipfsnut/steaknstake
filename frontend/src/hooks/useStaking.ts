@@ -10,7 +10,7 @@ import { useFarcasterMiniApp } from './useFarcasterMiniApp';
 export function useStaking() {
   const { address, isConnected } = useAccount();
   const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { connect, connectors } = useConnect();
+  const { connectors } = useConnect();
   const { isFarcasterContext, isWalletConnected, getEthereumProvider } = useFarcasterWallet();
   const { user, isMiniApp, sdk } = useFarcasterMiniApp();
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
@@ -144,24 +144,19 @@ export function useStaking() {
         isConnected
       });
 
-      // In Farcaster context, ensure connector is connected
-      if (isFarcasterContext && !isConnected) {
-        console.log('🔌 Farcaster context detected but not connected - connecting...');
-        const farcasterConnector = connectors.find(c => c.id === 'farcasterMiniApp');
-        if (farcasterConnector) {
-          connect({ connector: farcasterConnector });
-          console.log('✅ Farcaster connector connection initiated');
-          // Give it a moment to connect
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-          throw new Error('Farcaster connector not found');
-        }
+      // In Farcaster context, we don't need to "connect" in the traditional sense
+      // The wagmi writeContract should work directly with the Farcaster provider
+      if (isFarcasterContext) {
+        console.log('🔌 Farcaster context detected - using Farcaster wallet directly');
+        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name, type: c.type })));
+        
+        // In Farcaster miniapp context, wagmi should automatically use the Farcaster provider
+        console.log('💫 Proceeding with transaction - Farcaster will handle wallet prompting');
       }
 
-      // In Farcaster context, let the transaction proceed - Farcaster will handle wallet prompting
-      console.log('📝 Using wagmi writeContract for approval (works in both web and Farcaster contexts)...');
+      // Use wagmi writeContract - this works in both web and Farcaster contexts
+      console.log('📝 Using wagmi writeContract for approval...');
       
-      // Use wagmi writeContract - this should work with Farcaster connector
       writeContract({
         address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
         abi: ERC20_ABI,
@@ -170,12 +165,6 @@ export function useStaking() {
       });
       
       console.log('✅ Approve transaction submitted via wagmi');
-      
-      // In Farcaster context without address, we can't wait for confirmation normally
-      // The useWaitForTransactionReceipt hook should still work with the hash
-      if (isFarcasterContext && !address) {
-        console.log('💫 Farcaster context: Approval submitted, will wait for confirmation via hash');
-      }
       
     } catch (err) {
       console.error('❌ Approve failed:', err);
@@ -200,23 +189,19 @@ export function useStaking() {
         isConnected
       });
 
-      // In Farcaster context, ensure connector is connected
-      if (isFarcasterContext && !isConnected) {
-        console.log('🔌 Farcaster context detected but not connected - connecting...');
-        const farcasterConnector = connectors.find(c => c.id === 'farcasterMiniApp');
-        if (farcasterConnector) {
-          connect({ connector: farcasterConnector });
-          console.log('✅ Farcaster connector connection initiated');
-          // Give it a moment to connect
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-          throw new Error('Farcaster connector not found');
-        }
+      // In Farcaster context, we don't need to "connect" in the traditional sense
+      // The wagmi writeContract should work directly with the Farcaster provider
+      if (isFarcasterContext) {
+        console.log('🔌 Farcaster context detected - using Farcaster wallet directly');
+        console.log('Available connectors:', connectors.map(c => ({ id: c.id, name: c.name, type: c.type })));
+        
+        // In Farcaster miniapp context, wagmi should automatically use the Farcaster provider
+        console.log('💫 Proceeding with transaction - Farcaster will handle wallet prompting');
       }
 
-      console.log('📝 Using wagmi writeContract for staking (works in both web and Farcaster contexts)...');
+      console.log('📝 Using wagmi writeContract for staking...');
       
-      // Use wagmi writeContract - this should work with Farcaster connector
+      // Use wagmi writeContract - this works in both web and Farcaster contexts
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,

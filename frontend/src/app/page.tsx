@@ -73,8 +73,7 @@ export default function HomePage() {
     isFarcasterLoading 
   } = useWalletConnection();
 
-  // Use Farcaster miniapp integration - DISABLED to fix connector issue
-  // const { isReady, isMiniApp, user, openUrl, sdk } = useFarcasterMiniApp();
+  // Farcaster miniapp integration DISABLED to fix connector issue
   const isReady = true;
   const isMiniApp = false;
   const user = null;
@@ -103,44 +102,16 @@ export default function HomePage() {
   const STEAK_TOKEN_ADDRESS = '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
 
   const handleSwapForSteak = async () => {
-    if (isMiniApp && sdk) {
-      try {
-        console.log('🔄 Opening Farcaster native swap widget for STEAK...');
-        
-        // Use Farcaster's native swap widget with STEAK token pre-filled
-        const result = await sdk.actions.swapToken({
-          buyToken: `eip155:8453/erc20:${STEAK_TOKEN_ADDRESS}`, // Base network STEAK token
-          // Let user choose what to sell (don't pre-fill sellToken)
-          // sellAmount is optional - let user decide amount
-        });
-        
-        if (result.success) {
-          console.log('Swap initiated successfully:', result);
-        } else {
-          console.error('Swap failed:', result);
-        }
-      } catch (err) {
-        console.error('Failed to open Farcaster swap widget:', err);
-        
-        // Fallback to external swap if native widget fails
-        const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
-        console.log('🌐 Falling back to external swap:', swapUrl);
-        if (openUrl) {
-          openUrl(swapUrl);
-        }
-      }
-    } else {
-      // Fallback for non-miniapp context
-      const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
-      console.log('🌐 Opening swap in regular browser:', swapUrl);
-      window.open(swapUrl, '_blank');
-    }
+    // Farcaster integration disabled - always use external swap
+    const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
+    console.log('🌐 Opening external swap:', swapUrl);
+    window.open(swapUrl, '_blank');
   };
 
-  // Debug logging for miniapp state
+  // Debug logging for page state
   useEffect(() => {
-    console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp, 'user:', user);
-  }, [isReady, isMiniApp, user]);
+    console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp);
+  }, [isReady, isMiniApp]);
 
   const connectWallet = async () => {
     try {
@@ -210,15 +181,10 @@ export default function HomePage() {
       return;
     }
     
-    // In Farcaster miniapp, just check for user authentication
-    if (isMiniApp && !user) {
-      alert('Farcaster user not authenticated');
-      return;
-    }
+    // Farcaster miniapp disabled - no additional auth check needed
     
     console.log('🚀 Starting stake flow:', { 
       isMiniApp, 
-      user: user?.username, 
       address, 
       isConnected, 
       amount 
@@ -356,13 +322,12 @@ export default function HomePage() {
               </div>
             )}
             
-            {isMiniApp && user ? (
+            {false ? (
               <>
                 <div className="bg-green-50 rounded-xl p-6 border mb-6 text-center">
-                  <h3 className="text-xl font-bold mb-4">Welcome @{user.username}!</h3>
-                  <p className="text-gray-600 mb-4">You're connected via Farcaster</p>
+                  <h3 className="text-xl font-bold mb-4">Welcome!</h3>
+                  <p className="text-gray-600 mb-4">You're connected via wallet</p>
                   <div className="text-sm text-green-700">
-                    <p>🎯 Farcaster ID: {user.fid}</p>
                     <p>💰 Ready to stake and tip!</p>
                   </div>
                 </div>
@@ -501,7 +466,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {userPosition && userPosition.stakedAmount > 0 && (
+                {(userPosition?.stakedAmount || 0) > 0 && (
                   <div className="bg-white rounded-xl p-6 border mb-6">
                     <h3 className="text-xl font-bold mb-4">Unstake Tokens</h3>
                     <p className="text-gray-600 mb-4">Withdraw your staked $STEAK tokens (keeps your earned allowances).</p>
@@ -509,7 +474,7 @@ export default function HomePage() {
                       <input 
                         type="number" 
                         placeholder="Amount to unstake"
-                        max={userPosition.stakedAmount}
+                        max={userPosition?.stakedAmount || 0}
                         className="w-full p-3 border rounded-lg"
                         id="unstakeAmountMiniapp"
                       />
@@ -526,7 +491,7 @@ export default function HomePage() {
                         </button>
                         <button 
                           onClick={() => {
-                            if (userPosition.stakedAmount > 0) handleUnstake(userPosition.stakedAmount.toString());
+                            if ((userPosition?.stakedAmount || 0) > 0) handleUnstake(userPosition!.stakedAmount.toString());
                           }}
                           disabled={isProcessing}
                           className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg font-medium"
@@ -673,7 +638,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                {userPosition && userPosition.stakedAmount > 0 && (
+                {(userPosition?.stakedAmount || 0) > 0 && (
                   <div className="bg-white rounded-xl p-6 border mb-6">
                     <h3 className="text-xl font-bold mb-4">Unstake Tokens</h3>
                     <p className="text-gray-600 mb-4">Withdraw your staked $STEAK tokens (keeps your earned allowances).</p>
@@ -681,7 +646,7 @@ export default function HomePage() {
                       <input 
                         type="number" 
                         placeholder="Amount to unstake"
-                        max={userPosition.stakedAmount}
+                        max={userPosition?.stakedAmount || 0}
                         className="w-full p-3 border rounded-lg"
                         id="unstakeAmount"
                       />
@@ -698,7 +663,7 @@ export default function HomePage() {
                         </button>
                         <button 
                           onClick={() => {
-                            if (userPosition.stakedAmount > 0) handleUnstake(userPosition.stakedAmount.toString());
+                            if ((userPosition?.stakedAmount || 0) > 0) handleUnstake(userPosition!.stakedAmount.toString());
                           }}
                           disabled={isProcessing}
                           className="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-400 text-white px-4 py-3 rounded-lg font-medium"
@@ -1020,9 +985,6 @@ export default function HomePage() {
             <span className="text-white text-2xl">🥩</span>
           </div>
           <p className="text-gray-600">Loading SteakNStake...</p>
-          {isMiniApp && user && (
-            <p className="text-sm text-gray-500 mt-2">Welcome, @{user.username}!</p>
-          )}
         </div>
       </div>
     );
@@ -1079,8 +1041,7 @@ export default function HomePage() {
                 onClick={connectWallet}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium"
               >
-                {walletAddress ? `${formatAddress(walletAddress)}` : 
-                 (isMiniApp && user) ? `@${user.username}` : 'Connect Wallet'}
+                {walletAddress ? `${formatAddress(walletAddress)}` : 'Connect Wallet'}
               </button>
             </nav>
             

@@ -227,6 +227,11 @@ export default function HomePage() {
         // Step 2: Stake tokens
         await stakeTokens(amount);
         
+        // Force refresh contract data immediately
+        setTimeout(() => {
+          refetchData();
+        }, 2000);
+        
         // Also update backend if needed
         try {
           const stakeResponse = await stakingApi.stake({
@@ -375,8 +380,8 @@ export default function HomePage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold text-green-600">{userPosition?.stakedAmount || 0}</div>
-                      <div className="text-sm text-gray-500">$STEAK Staked</div>
+                      <div className="text-2xl font-bold text-green-600">{stakedAmount || userPosition?.stakedAmount || '0'}</div>
+                      <div className="text-sm text-gray-500">$STEAK Staked (Contract: {stakedAmount})</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-purple-600">{userPosition?.availableTipBalance || 0}</div>
@@ -559,8 +564,8 @@ export default function HomePage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
-                      <div className="text-2xl font-bold text-green-600">{userPosition?.stakedAmount || 0}</div>
-                      <div className="text-sm text-gray-500">$STEAK Staked</div>
+                      <div className="text-2xl font-bold text-green-600">{stakedAmount || userPosition?.stakedAmount || '0'}</div>
+                      <div className="text-sm text-gray-500">$STEAK Staked (Contract: {stakedAmount})</div>
                     </div>
                     <div>
                       <div className="text-2xl font-bold text-purple-600">{userPosition?.availableTipBalance || 0}</div>

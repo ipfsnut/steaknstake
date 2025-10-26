@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const winston = require('winston');
-const fetch = require('node-fetch');
+const axios = require('axios');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -315,23 +315,20 @@ async function postToFarcaster(text, parentHash = null) {
       requestBody.parent = parentHash;
     }
 
-    const response = await fetch('https://api.neynar.com/v2/farcaster/cast', {
-      method: 'POST',
+    const response = await axios.post('https://api.neynar.com/v2/farcaster/cast', requestBody, {
       headers: {
         'accept': 'application/json',
         'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC',
         'content-type': 'application/json'
-      },
-      body: JSON.stringify(requestBody)
+      }
     });
     
-    if (response.ok) {
+    if (response.status >= 200 && response.status < 300) {
       logger.info('Message posted to Farcaster successfully');
-      return await response.json();
+      return response.data;
     } else {
-      const errorText = await response.text();
-      logger.error('Failed to post to Farcaster:', errorText);
-      throw new Error(`Farcaster API error: ${errorText}`);
+      logger.error('Failed to post to Farcaster:', response.data);
+      throw new Error(`Farcaster API error: ${JSON.stringify(response.data)}`);
     }
     
   } catch (error) {

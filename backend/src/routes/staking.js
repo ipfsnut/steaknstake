@@ -107,12 +107,12 @@ router.get('/position/:address', async (req, res) => {
     const { address } = req.params;
     
     // TEMPORARILY BYPASS getOrCreateUser - DIRECT QUERY
-    const client = await db.getClient();
-    const userResult = await client.query(
+    const userClient = await db.getClient();
+    const userResult = await userClient.query(
       'SELECT * FROM users WHERE wallet_address = $1',
       [address.toLowerCase()]
     );
-    client.release();
+    userClient.release();
     
     if (userResult.rows.length === 0) {
       return res.status(404).json({

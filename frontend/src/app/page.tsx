@@ -112,6 +112,17 @@ export default function HomePage() {
     }
   });
 
+  // Read user's allocated tips (might be the allowance balance)
+  const { data: allocatedTips } = useReadContract({
+    address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
+    abi: STEAKNSTAKE_ABI,
+    functionName: 'allocatedTips',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address
+    }
+  });
+
   // Use staking contract integration
   const {
     currentStep,

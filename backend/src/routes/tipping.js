@@ -54,6 +54,7 @@ router.post('/send', async (req, res) => {
       const tipper = tipperResult.rows[0];
       
       // CRITICAL: Prevent self-tipping via API (check if tipper FID matches recipient FID)
+      // Force deployment - 2025-10-26T20:20:30Z
       if (tipper.farcaster_fid && parseInt(tipper.farcaster_fid) === parseInt(recipientFid)) {
         await client.query('ROLLBACK');
         return res.status(400).json({

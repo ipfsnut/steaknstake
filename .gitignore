@@ -81,3 +81,6 @@ scripts/generate-wallet.js
 *.bak
 *.backup
 *.orig
+
+# Claude AI context and instructions (contains sensitive info)
+CLAUDE.md

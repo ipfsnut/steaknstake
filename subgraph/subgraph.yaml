@@ -29,6 +29,6 @@ dataSources:
           handler: handleUnstaked
         - event: TipsAllocated(indexed address,uint256)
           handler: handleTipsAllocated
-        - event: TipsClaimed(indexed address,uint256)
+        - event: TipsClaimed(indexed address,uint256,uint8)
           handler: handleTipsClaimed
       file: ./src/mapping.ts

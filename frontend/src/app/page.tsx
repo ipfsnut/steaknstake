@@ -85,11 +85,7 @@ export default function HomePage() {
     functionName: 'totalStaked',
   });
 
-  const { data: contractTotalSupply } = useReadContract({
-    address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
-    abi: STEAKNSTAKE_ABI,
-    functionName: 'totalSupply',
-  });
+  // Contract doesn't have totalSupply - we'll calculate stakers differently
 
   // Read user's allocated tips (total earned)
   const { data: allocatedTips } = useReadContract({
@@ -198,7 +194,6 @@ export default function HomePage() {
   // Update all stats when contract data changes
   useEffect(() => {
     const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
-    const realTotalSupply = contractTotalSupply ? parseFloat(formatEther(contractTotalSupply)) : 0;
     const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
     const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
     
@@ -214,9 +209,12 @@ export default function HomePage() {
       contractStakedAmount
     });
     
+    // Calculate total stakers: if there's any staked amount, there's at least 1 staker
+    const totalStakers = realTotalStaked > 0 ? 1 : 0; // For now, simple calculation
+    
     // Update platform stats with real contract data
     setStakingStats({
-      totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0,
+      totalStakers,
       totalStaked: realTotalStaked,
       tipsEarned: userAllocatedTips,
       tipsAvailable: userClaimableTips
@@ -235,7 +233,7 @@ export default function HomePage() {
       });
     }
     setTopStakers(leaderboard);
-  }, [contractTotalStaked, contractTotalSupply, allocatedTips, claimableAmount, contractStakedAmount, address, user]);
+  }, [contractTotalStaked, allocatedTips, claimableAmount, contractStakedAmount, address, user]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

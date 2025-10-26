@@ -73,8 +73,13 @@ export default function HomePage() {
     isFarcasterLoading 
   } = useWalletConnection();
 
-  // Use Farcaster miniapp integration
-  const { isReady, isMiniApp, user, openUrl, sdk } = useFarcasterMiniApp();
+  // Use Farcaster miniapp integration - DISABLED to fix connector issue
+  // const { isReady, isMiniApp, user, openUrl, sdk } = useFarcasterMiniApp();
+  const isReady = true;
+  const isMiniApp = false;
+  const user = null;
+  const openUrl = null;
+  const sdk = null;
 
   // Use staking contract integration
   const {

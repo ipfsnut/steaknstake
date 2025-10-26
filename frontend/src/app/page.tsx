@@ -371,11 +371,13 @@ export default function HomePage() {
       case 'stake':
         return (
           <div className="max-w-2xl mx-auto">
-            <div className="flex items-center justify-center gap-2 mb-8">
-              <h2 className="text-3xl font-bold">Stake $STEAK</h2>
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <h2 className="text-4xl font-bold bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent">
+                Stake $STEAK
+              </h2>
               <button 
                 onClick={() => setShowStakeHelp(!showStakeHelp)}
-                className="text-sm bg-gray-100 hover:bg-gray-200 rounded-full w-6 h-6 flex items-center justify-center"
+                className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full w-7 h-7 flex items-center justify-center font-medium transition-colors"
                 title="Staking info"
               >
                 ?
@@ -383,25 +385,44 @@ export default function HomePage() {
             </div>
             
             {showStakeHelp && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
-                <h3 className="font-bold text-green-800 mb-2">About Staking</h3>
-                <div className="text-sm text-green-700 space-y-1">
-                  <p>• Stake $STEAK tokens to earn daily allowances</p>
-                  <p>• Allowances can only be tipped to others, never claimed</p>
-                  <p>• You can unstake your original tokens anytime</p>
-                  <p>• Longer stakes earn more tipping power</p>
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 mb-8 shadow-sm">
+                <h3 className="font-bold text-green-800 mb-3 text-lg">🥩 About Staking</h3>
+                <div className="text-sm text-green-700 space-y-2">
+                  <p className="flex items-start gap-2">
+                    <span className="text-green-500 mt-0.5">•</span>
+                    <span>Stake $STEAK tokens to earn daily allowances</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <span className="text-green-500 mt-0.5">•</span>
+                    <span>Allowances can only be tipped to others, never claimed</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <span className="text-green-500 mt-0.5">•</span>
+                    <span>You can unstake your original tokens anytime</span>
+                  </p>
+                  <p className="flex items-start gap-2">
+                    <span className="text-green-500 mt-0.5">•</span>
+                    <span>Longer stakes earn more tipping power</span>
+                  </p>
                 </div>
               </div>
             )}
             
             {isMiniApp && user ? (
               <>
-                <div className="bg-green-50 rounded-xl p-6 border mb-6 text-center">
-                  <h3 className="text-xl font-bold mb-4">Welcome @{user.username}!</h3>
-                  <p className="text-gray-600 mb-4">You're connected via Farcaster</p>
-                  <div className="text-sm text-green-700">
-                    <p>🎯 Farcaster ID: {user.fid}</p>
-                    <p>💰 Ready to stake and tip!</p>
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-200 mb-8 text-center shadow-lg">
+                  <div className="text-4xl mb-3">🎉</div>
+                  <h3 className="text-2xl font-bold mb-3 text-green-800">Welcome @{user.username}!</h3>
+                  <p className="text-green-600 mb-4 font-medium">Connected via Farcaster</p>
+                  <div className="flex justify-center gap-6 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-500">🎯</span>
+                      <span className="text-green-700">ID: {user.fid}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-green-500">💰</span>
+                      <span className="text-green-700">Ready to stake!</span>
+                    </div>
                   </div>
                 </div>
 
@@ -949,18 +970,18 @@ export default function HomePage() {
       default:
         return (
           <div className="text-center">
-            <div className="mb-4 flex justify-center">
-              <div className="w-16 h-16 bg-red-500 rounded-xl flex items-center justify-center">
-                <span className="text-white text-2xl">🥩</span>
+            <div className="mb-6 flex justify-center">
+              <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-orange-500 rounded-2xl flex items-center justify-center shadow-xl">
+                <span className="text-white text-3xl">🥩</span>
               </div>
             </div>
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <h1 className="text-4xl md:text-6xl font-black text-red-600">
+            <div className="flex items-center justify-center gap-3 mb-6">
+              <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent">
                 SteakNStake
               </h1>
               <button 
                 onClick={() => setShowHelp(!showHelp)}
-                className="text-lg bg-gray-100 hover:bg-gray-200 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+                className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-600 rounded-full w-10 h-10 flex items-center justify-center transition-colors font-bold shadow-md"
                 title="How it works"
               >
                 ?
@@ -1006,42 +1027,42 @@ export default function HomePage() {
               </div>
             )}
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto mb-8">
-              <div className="bg-white rounded-xl p-4 text-center border">
-                <div className="text-2xl mb-1">👥</div>
-                <div className="text-xl font-bold text-blue-600">{stakingStats.totalStakers}</div>
-                <div className="text-xs text-gray-500">Stakers</div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-12">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 text-center border border-blue-200 shadow-lg hover:shadow-xl transition-shadow">
+                <div className="text-3xl mb-3">👥</div>
+                <div className="text-2xl font-bold text-blue-600 mb-1">{stakingStats.totalStakers}</div>
+                <div className="text-sm text-blue-700 font-medium">Stakers</div>
               </div>
               
-              <div className="bg-white rounded-xl p-4 text-center border">
-                <div className="text-2xl mb-1">💰</div>
-                <div className="text-xl font-bold text-green-600">{formatNumber(stakingStats.totalStaked)}</div>
-                <div className="text-xs text-gray-500">$STEAK Staked</div>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl p-6 text-center border border-green-200 shadow-lg hover:shadow-xl transition-shadow">
+                <div className="text-3xl mb-3">💰</div>
+                <div className="text-2xl font-bold text-green-600 mb-1">{formatNumber(stakingStats.totalStaked)}</div>
+                <div className="text-sm text-green-700 font-medium">$STEAK Staked</div>
               </div>
               
-              <div className="bg-white rounded-xl p-4 text-center border">
-                <div className="text-2xl mb-1">🎁</div>
-                <div className="text-xl font-bold text-purple-600">{formatNumber(stakingStats.totalRewardsEarned)}</div>
-                <div className="text-xs text-gray-500">Rewards Earned</div>
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 text-center border border-purple-200 shadow-lg hover:shadow-xl transition-shadow">
+                <div className="text-3xl mb-3">🎁</div>
+                <div className="text-2xl font-bold text-purple-600 mb-1">{formatNumber(stakingStats.totalRewardsEarned)}</div>
+                <div className="text-sm text-purple-700 font-medium">Rewards Earned</div>
               </div>
               
-              <div className="bg-white rounded-xl p-4 text-center border">
-                <div className="text-2xl mb-1">💝</div>
-                <div className="text-xl font-bold text-pink-600">{formatNumber(stakingStats.totalAvailableTips)}</div>
-                <div className="text-xs text-gray-500">Tips Available</div>
+              <div className="bg-gradient-to-br from-pink-50 to-rose-100 rounded-2xl p-6 text-center border border-pink-200 shadow-lg hover:shadow-xl transition-shadow">
+                <div className="text-3xl mb-3">💝</div>
+                <div className="text-2xl font-bold text-pink-600 mb-1">{formatNumber(stakingStats.totalAvailableTips)}</div>
+                <div className="text-sm text-pink-700 font-medium">Tips Available</div>
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button 
                 onClick={() => setActiveSection('stake')}
-                className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-bold"
+                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
               >
                 🥩 Start Staking
               </button>
               <button 
                 onClick={() => setActiveSection('tip')}
-                className="bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-300 px-6 py-3 rounded-xl font-bold"
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
               >
                 💝 Learn Tipping
               </button>

@@ -141,12 +141,15 @@ export function useWalletConnection() {
 
   const connectBoth = async () => {
     try {
-      // Connect wallet first
-      await connectWallet()
-      // Then sign in with Farcaster
-      await connectFarcaster()
+      // Just connect wallet - don't force Farcaster unless in miniapp
+      if (isFarcasterContext) {
+        await connectWallet()
+        await connectFarcaster()
+      } else {
+        await connectWallet()
+      }
     } catch (error) {
-      console.error('Error connecting both:', error)
+      console.error('Error connecting:', error)
     }
   }
 

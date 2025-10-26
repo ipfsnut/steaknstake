@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 import { stakingApi, tippingApi } from '@/lib/api';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
-// import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
+import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
 import { useStaking } from '@/hooks/useStaking';
 
 interface StakingStats {
@@ -73,12 +73,8 @@ export default function HomePage() {
     isFarcasterLoading 
   } = useWalletConnection();
 
-  // Farcaster miniapp integration DISABLED to fix connector issue
-  const isReady = true;
-  const isMiniApp = false;
-  const user = null;
-  const openUrl = null;
-  const sdk = null;
+  // Use Farcaster miniapp integration
+  const { isReady, isMiniApp, user, openUrl, sdk } = useFarcasterMiniApp();
 
   // Use staking contract integration
   const {
@@ -102,16 +98,44 @@ export default function HomePage() {
   const STEAK_TOKEN_ADDRESS = '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
 
   const handleSwapForSteak = async () => {
-    // Farcaster integration disabled - always use external swap
-    const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
-    console.log('🌐 Opening external swap:', swapUrl);
-    window.open(swapUrl, '_blank');
+    if (isMiniApp && sdk) {
+      try {
+        console.log('🔄 Opening Farcaster native swap widget for STEAK...');
+        
+        // Use Farcaster's native swap widget with STEAK token pre-filled
+        const result = await sdk.actions.swapToken({
+          buyToken: `eip155:8453/erc20:${STEAK_TOKEN_ADDRESS}`, // Base network STEAK token
+          // Let user choose what to sell (don't pre-fill sellToken)
+          // sellAmount is optional - let user decide amount
+        });
+        
+        if (result.success) {
+          console.log('Swap initiated successfully:', result);
+        } else {
+          console.error('Swap failed:', result);
+        }
+      } catch (err) {
+        console.error('Failed to open Farcaster swap widget:', err);
+        
+        // Fallback to external swap if native widget fails
+        const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
+        console.log('🌐 Falling back to external swap:', swapUrl);
+        if (openUrl) {
+          openUrl(swapUrl);
+        }
+      }
+    } else {
+      // Fallback for non-miniapp context
+      const swapUrl = `https://app.uniswap.org/#/swap?outputCurrency=${STEAK_TOKEN_ADDRESS}&chain=base`;
+      console.log('🌐 Opening swap in regular browser:', swapUrl);
+      window.open(swapUrl, '_blank');
+    }
   };
 
-  // Debug logging for page state
+  // Debug logging for miniapp state
   useEffect(() => {
-    console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp);
-  }, [isReady, isMiniApp]);
+    console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp, 'user:', user);
+  }, [isReady, isMiniApp, user]);
 
   const connectWallet = async () => {
     try {
@@ -181,10 +205,15 @@ export default function HomePage() {
       return;
     }
     
-    // Farcaster miniapp disabled - no additional auth check needed
+    // In Farcaster miniapp, just check for user authentication
+    if (isMiniApp && !user) {
+      alert('Farcaster user not authenticated');
+      return;
+    }
     
     console.log('🚀 Starting stake flow:', { 
       isMiniApp, 
+      user: user?.username, 
       address, 
       isConnected, 
       amount 
@@ -322,12 +351,13 @@ export default function HomePage() {
               </div>
             )}
             
-            {false ? (
+            {isMiniApp && user ? (
               <>
                 <div className="bg-green-50 rounded-xl p-6 border mb-6 text-center">
-                  <h3 className="text-xl font-bold mb-4">Welcome!</h3>
-                  <p className="text-gray-600 mb-4">You're connected via wallet</p>
+                  <h3 className="text-xl font-bold mb-4">Welcome @{user.username}!</h3>
+                  <p className="text-gray-600 mb-4">You're connected via Farcaster</p>
                   <div className="text-sm text-green-700">
+                    <p>🎯 Farcaster ID: {user.fid}</p>
                     <p>💰 Ready to stake and tip!</p>
                   </div>
                 </div>

@@ -3,14 +3,24 @@
   "name": "Steak 'n' Stake",
   "iconUrl": "https://steak.epicdylan.com/icon.png",
   "homeUrl": "https://steak.epicdylan.com",
-  "imageUrl": "https://steak.epicdylan.com/SteakNStake.png",
+  "imageUrl": "https://steak.epicdylan.com/image.png",
   "buttonTitle": "Start staking",
   "splashImageUrl": "https://steak.epicdylan.com/splash.png",
   "splashBackgroundColor": "#000000",
   "webhookUrl": "https://steak.epicdylan.com/api/webhook",
+  "subtitle": "Stake $STEAK, tip, repeat. ",
+  "description": "This is a financial application designed to help people grow their Farcaster following & earn money by participating in a decentralized ecosystem.",
+  "primaryCategory": "social",
+  "tags": ["social", "community"],
+  "tagline": "Stake and Steak",
+  "ogTitle": "StakingSteak",
+  "ogDescription": "Steak n stake!",
+  "ogImageUrl": "https://steak.epicdylan.com/SteakNStake.png",
+  "heroImageUrl": "https://steak.epicdylan.com/splash.png",
+  "screenshotUrls": ["https://steak.epicdylan.com/SteakNStake.png"],
   "accountAssociation": {
     "header": "eyJmaWQiOjg1NzMsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgxOEE4NWFkMzQxYjJENkEyYmQ2N2ZiYjEwNEI0ODI3QjkyMmEyQTNjIn0",
     "payload": "eyJkb21haW4iOiJzdGVhay5lcGljZHlsYW4uY29tIn0",
-    "signature": "ueC90Bzixwoue6z43di155NEot4lT9JkEoN0SBpbHP970nxBKnvZUVzQU4i68NrWqP5NYLN5kav/cSkHb3I4PBw="
+    "signature": "ueC90Brzixwoue6z43di155NEot4lT9JkEoN0SBpbHP970nxBKnvZUVzQU4i68NrWqP5NYLN5kav/cSkHb3I4PBw="
   }
 }

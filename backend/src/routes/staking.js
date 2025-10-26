@@ -101,6 +101,23 @@ async function getOrCreateUser(walletAddress, farcasterFid = null, farcasterUser
   }
 }
 
+// SIMPLE TEST ENDPOINT
+router.get('/test/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    res.json({
+      success: true,
+      message: 'Test endpoint working',
+      address: address
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // GET /api/staking/position/:address - Get user's staking position
 router.get('/position/:address', async (req, res) => {
   try {

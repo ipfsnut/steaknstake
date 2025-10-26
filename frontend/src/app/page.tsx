@@ -202,6 +202,18 @@ export default function HomePage() {
     const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
     const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
     
+    // Debug logging
+    console.log('📊 Contract data update:', {
+      address,
+      contractTotalStaked: contractTotalStaked?.toString(),
+      realTotalStaked,
+      allocatedTips: allocatedTips?.toString(),
+      userAllocatedTips,
+      claimableAmount: claimableAmount?.toString(),
+      userClaimableTips,
+      contractStakedAmount
+    });
+    
     // Update platform stats with real contract data
     setStakingStats({
       totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0,

@@ -15,36 +15,39 @@ export function useStaking() {
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Check allowance for SteakNStake contract - skip in Farcaster context if no address
+  // In Farcaster context, we might not have an address immediately, but transactions can still work
+  const effectiveAddress = address || (isFarcasterContext && user ? 'farcaster-context' : undefined);
+
+  // Check allowance for SteakNStake contract - in Farcaster context, skip allowance checks
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
     address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
     abi: ERC20_ABI,
     functionName: 'allowance',
     args: address && CONTRACTS.STEAKNSTAKE ? [address, CONTRACTS.STEAKNSTAKE as `0x${string}`] : undefined,
     query: {
-      enabled: !isFarcasterContext || !!address // Only run if not Farcaster context OR we have an address
+      enabled: !!address && !!CONTRACTS.STEAKNSTAKE // Only run if we have a real address
     }
   });
 
-  // Check user's STEAK balance - skip in Farcaster context if no address
+  // Check user's STEAK balance - in Farcaster context, skip balance checks  
   const { data: balance, refetch: refetchBalance } = useReadContract({
     address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
     abi: ERC20_ABI,
     functionName: 'balanceOf',
     args: address ? [address] : undefined,
     query: {
-      enabled: !isFarcasterContext || !!address // Only run if not Farcaster context OR we have an address
+      enabled: !!address // Only run if we have a real address
     }
   });
 
-  // Check user's staked amount - skip in Farcaster context if no address
+  // Check user's staked amount - in Farcaster context, skip staked amount checks
   const { data: stakedAmount, refetch: refetchStaked } = useReadContract({
     address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
     abi: STEAKNSTAKE_ABI,
     functionName: 'stakedAmounts',
     args: address ? [address] : undefined,
     query: {
-      enabled: !isFarcasterContext || !!address // Only run if not Farcaster context OR we have an address
+      enabled: !!address // Only run if we have a real address
     }
   });
 
@@ -53,22 +56,30 @@ export function useStaking() {
     hash,
   });
 
-  // Update step based on allowance
+  // Update step based on allowance - in Farcaster context, always start with approve
   useEffect(() => {
     console.log('🔍 Allowance check:', {
       allowance: allowance?.toString(),
       hasAllowance: allowance && allowance > BigInt(0),
       currentStep,
       address,
+      isFarcasterContext,
       contracts: CONTRACTS
     });
+    
+    // In Farcaster context without address, we can't check allowance, so always start with approve
+    if (isFarcasterContext && !address) {
+      console.log('💫 Farcaster context without address - starting with approve step');
+      setCurrentStep('approve');
+      return;
+    }
     
     if (allowance && allowance > BigInt(0)) {
       setCurrentStep('stake');
     } else {
       setCurrentStep('approve');
     }
-  }, [allowance, address]);
+  }, [allowance, address, isFarcasterContext]);
 
   // Handle transaction confirmation
   useEffect(() => {
@@ -77,23 +88,33 @@ export function useStaking() {
       isConfirming,
       hash: hash?.toString(),
       currentStep,
-      isPending
+      isPending,
+      isFarcasterContext,
+      address
     });
     
     if (isConfirmed) {
       console.log('✅ Transaction confirmed! Refetching data...');
       setIsProcessing(false);
-      refetchAllowance();
-      refetchBalance();
-      refetchStaked();
       
-      if (currentStep === 'stake') {
+      // Only refetch if we have an address (not in Farcaster context without address)
+      if (address) {
+        refetchAllowance();
+        refetchBalance();
+        refetchStaked();
+      }
+      
+      if (currentStep === 'approve' && isFarcasterContext && !address) {
+        // In Farcaster context, assume approval succeeded and move to stake step
+        console.log('💫 Farcaster context: Moving from approve to stake step');
+        setCurrentStep('stake');
+      } else if (currentStep === 'stake') {
         setCurrentStep('completed');
         // Reset to approve step after a delay
         setTimeout(() => setCurrentStep('approve'), 3000);
       }
     }
-  }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked]);
+  }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked, isFarcasterContext, address]);
 
   const approveSteak = async (amount: string) => {
     console.log('🚀 Starting approve flow...', { amount, address, isFarcasterContext });
@@ -115,16 +136,24 @@ export function useStaking() {
       console.log('📝 Using wagmi writeContract for approval (works in both web and Farcaster contexts)...');
       
       // Use wagmi writeContract - this should work with Farcaster connector
-      await writeContract({
+      writeContract({
         address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'approve',
         args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
       });
       console.log('✅ Approve transaction submitted via wagmi');
+      
+      // In Farcaster context without address, we can't wait for confirmation normally
+      // The useWaitForTransactionReceipt hook should still work with the hash
+      if (isFarcasterContext && !address) {
+        console.log('💫 Farcaster context: Approval submitted, will wait for confirmation via hash');
+      }
+      
     } catch (err) {
-      console.error('Approve failed:', err);
+      console.error('❌ Approve failed:', err);
       setIsProcessing(false);
+      throw err; // Re-throw so the UI can handle it
     }
   };
 
@@ -146,7 +175,7 @@ export function useStaking() {
       console.log('📝 Using wagmi writeContract for staking (works in both web and Farcaster contexts)...');
       
       // Use wagmi writeContract - this should work with Farcaster connector
-      await writeContract({
+      writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'stake',

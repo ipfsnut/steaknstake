@@ -54,6 +54,9 @@ export function useStaking() {
   // Wait for transaction confirmation
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,
+    query: {
+      enabled: !!hash, // Only try to watch for receipt if we have a hash
+    }
   });
 
   // Update step based on allowance - in Farcaster context, always start with approve
@@ -90,7 +93,8 @@ export function useStaking() {
       currentStep,
       isPending,
       isFarcasterContext,
-      address
+      address,
+      error: error?.message
     });
     
     if (isConfirmed) {
@@ -114,7 +118,13 @@ export function useStaking() {
         setTimeout(() => setCurrentStep('approve'), 3000);
       }
     }
-  }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked, isFarcasterContext, address]);
+    
+    // Handle transaction errors
+    if (error && !isPending && !isConfirming) {
+      console.error('💥 Transaction error detected:', error);
+      setIsProcessing(false);
+    }
+  }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked, isFarcasterContext, address, error, isPending, isConfirming]);
 
   const approveSteak = async (amount: string) => {
     console.log('🚀 Starting approve flow...', { amount, address, isFarcasterContext });
@@ -142,6 +152,7 @@ export function useStaking() {
         functionName: 'approve',
         args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
       });
+      
       console.log('✅ Approve transaction submitted via wagmi');
       
       // In Farcaster context without address, we can't wait for confirmation normally

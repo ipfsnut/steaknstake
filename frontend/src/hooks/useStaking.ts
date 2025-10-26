@@ -15,6 +15,8 @@ export function useStaking() {
   const { user, isMiniApp, sdk } = useFarcasterMiniApp();
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [userError, setUserError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // In Farcaster context, we might not have an address immediately, but transactions can still work
   const effectiveAddress = address || (isFarcasterContext && user ? 'farcaster-context' : undefined);
@@ -109,14 +111,21 @@ export function useStaking() {
         refetchStaked();
       }
       
-      if (currentStep === 'approve' && isFarcasterContext && !address) {
-        // In Farcaster context, assume approval succeeded and move to stake step
-        console.log('💫 Farcaster context: Moving from approve to stake step');
-        setCurrentStep('stake');
+      if (currentStep === 'approve') {
+        setSuccessMessage('STEAK tokens approved successfully!');
+        if (isFarcasterContext && !address) {
+          // In Farcaster context, assume approval succeeded and move to stake step
+          console.log('💫 Farcaster context: Moving from approve to stake step');
+          setCurrentStep('stake');
+        }
       } else if (currentStep === 'stake') {
+        setSuccessMessage('STEAK tokens staked successfully!');
         setCurrentStep('completed');
         // Reset to approve step after a delay
-        setTimeout(() => setCurrentStep('approve'), 3000);
+        setTimeout(() => {
+          setCurrentStep('approve');
+          setSuccessMessage(null);
+        }, 3000);
       }
     }
     
@@ -124,6 +133,16 @@ export function useStaking() {
     if (error && !isPending && !isConfirming) {
       console.error('💥 Transaction error detected:', error);
       setIsProcessing(false);
+      
+      if (error?.message?.includes('User rejected')) {
+        setUserError('Transaction was rejected. Please try again.');
+      } else if (error?.message?.includes('insufficient funds')) {
+        setUserError('Insufficient ETH for transaction fees.');
+      } else if (error?.message?.includes('network')) {
+        setUserError('Network error. Please check your connection.');
+      } else {
+        setUserError('Transaction failed. Please try again.');
+      }
     }
   }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked, isFarcasterContext, address, error, isPending, isConfirming]);
 
@@ -132,6 +151,9 @@ export function useStaking() {
     
     try {
       setIsProcessing(true);
+      setUserError(null);
+      setSuccessMessage(null);
+      
       const amountWei = parseEther(amount);
       
       console.log('💰 Approving STEAK tokens:', {
@@ -152,9 +174,20 @@ export function useStaking() {
       
       console.log('✅ Approve transaction submitted');
       
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Approve failed:', err);
       setIsProcessing(false);
+      
+      if (err?.message?.includes('User rejected')) {
+        setUserError('Transaction was rejected. Please try again.');
+      } else if (err?.message?.includes('insufficient funds')) {
+        setUserError('Insufficient ETH for transaction fees.');
+      } else if (err?.message?.includes('network')) {
+        setUserError('Network error. Please check your connection.');
+      } else {
+        setUserError('Failed to approve tokens. Please try again.');
+      }
+      
       throw err;
     }
   };
@@ -164,6 +197,9 @@ export function useStaking() {
     
     try {
       setIsProcessing(true);
+      setUserError(null);
+      setSuccessMessage(null);
+      
       const amountWei = parseEther(amount);
       
       console.log('🥩 Staking STEAK tokens:', {
@@ -182,9 +218,21 @@ export function useStaking() {
       });
       
       console.log('✅ Stake transaction submitted');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Stake failed:', err);
       setIsProcessing(false);
+      
+      if (err?.message?.includes('User rejected')) {
+        setUserError('Transaction was rejected. Please try again.');
+      } else if (err?.message?.includes('insufficient funds')) {
+        setUserError('Insufficient STEAK balance for staking.');
+      } else if (err?.message?.includes('allowance')) {
+        setUserError('Please approve STEAK tokens first.');
+      } else if (err?.message?.includes('network')) {
+        setUserError('Network error. Please check your connection.');
+      } else {
+        setUserError('Failed to stake tokens. Please try again.');
+      }
     }
   };
 
@@ -193,6 +241,9 @@ export function useStaking() {
 
     try {
       setIsProcessing(true);
+      setUserError(null);
+      setSuccessMessage(null);
+      
       const amountWei = parseEther(amount);
       
       writeContract({
@@ -201,9 +252,19 @@ export function useStaking() {
         functionName: 'unstake',
         args: [amountWei],
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Unstake failed:', err);
       setIsProcessing(false);
+      
+      if (err?.message?.includes('User rejected')) {
+        setUserError('Transaction was rejected. Please try again.');
+      } else if (err?.message?.includes('insufficient')) {
+        setUserError('Insufficient staked balance for unstaking.');
+      } else if (err?.message?.includes('network')) {
+        setUserError('Network error. Please check your connection.');
+      } else {
+        setUserError('Failed to unstake tokens. Please try again.');
+      }
     }
   };
 
@@ -212,6 +273,8 @@ export function useStaking() {
     currentStep,
     isProcessing: isProcessing || isPending || isConfirming,
     error,
+    userError,
+    successMessage,
     
     // Data
     allowance: allowance ? formatEther(allowance) : '0',
@@ -228,6 +291,8 @@ export function useStaking() {
       refetchAllowance();
       refetchBalance();
       refetchStaked();
-    }
+    },
+    clearError: () => setUserError(null),
+    clearSuccess: () => setSuccessMessage(null)
   };
 }

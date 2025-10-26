@@ -81,13 +81,17 @@ export default function HomePage() {
     currentStep,
     isProcessing,
     error: stakingError,
+    userError,
+    successMessage,
     allowance,
     balance,
     stakedAmount: contractStakedAmount,
     approveSteak,
     stakeTokens,
     unstakeTokens,
-    refetchData
+    refetchData,
+    clearError,
+    clearSuccess
   } = useStaking();
 
   // $STEAK token contract address
@@ -407,11 +411,31 @@ export default function HomePage() {
                   <h3 className="text-xl font-bold mb-4">Step 2: Stake Tokens</h3>
                   <p className="text-gray-600 mb-4">Stake your $STEAK to start earning daily allowances.</p>
                   
-                  {stakingError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  {userError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
                       <p className="text-sm text-red-700">
-                        ⚠️ {stakingError.message || 'Transaction failed'}
+                        ⚠️ {userError}
                       </p>
+                      <button 
+                        onClick={clearError}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  
+                  {successMessage && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+                      <p className="text-sm text-green-700">
+                        ✅ {successMessage}
+                      </p>
+                      <button 
+                        onClick={clearSuccess}
+                        className="text-green-500 hover:text-green-700 text-sm"
+                      >
+                        ✕
+                      </button>
                     </div>
                   )}
                   
@@ -571,11 +595,31 @@ export default function HomePage() {
                   <h3 className="text-xl font-bold mb-4">Step 2: Stake Tokens</h3>
                   <p className="text-gray-600 mb-4">Stake your $STEAK to start earning daily allowances.</p>
                   
-                  {stakingError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                  {userError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
                       <p className="text-sm text-red-700">
-                        ⚠️ {stakingError.message || 'Transaction failed'}
+                        ⚠️ {userError}
                       </p>
+                      <button 
+                        onClick={clearError}
+                        className="text-red-500 hover:text-red-700 text-sm"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  )}
+                  
+                  {successMessage && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+                      <p className="text-sm text-green-700">
+                        ✅ {successMessage}
+                      </p>
+                      <button 
+                        onClick={clearSuccess}
+                        className="text-green-500 hover:text-green-700 text-sm"
+                      >
+                        ✕
+                      </button>
                     </div>
                   )}
                   

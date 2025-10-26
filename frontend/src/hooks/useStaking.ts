@@ -112,103 +112,16 @@ export function useStaking() {
       });
 
       // In Farcaster context, let the transaction proceed - Farcaster will handle wallet prompting
-      if (isFarcasterContext && !address) {
-        console.log('🔌 Farcaster context - proceeding with transaction, Farcaster will handle wallet');
-      }
+      console.log('📝 Using wagmi writeContract for approval (works in both web and Farcaster contexts)...');
       
-      if (isFarcasterContext && sdk) {
-        // Use Farcaster wallet provider for transactions in miniapp
-        console.log('📝 Using Farcaster wallet provider for approval transaction...');
-        
-        try {
-          // Get the Ethereum provider from Farcaster
-          const provider = await sdk.wallet.getEthereumProvider();
-          if (!provider) {
-            console.error('❌ No Farcaster wallet provider available');
-            setIsProcessing(false);
-            return;
-          }
-
-          // Encode approval function call data
-          const approveCalldata = `0x095ea7b3${CONTRACTS.STEAKNSTAKE.slice(2).padStart(64, '0')}${amountWei.toString(16).padStart(64, '0')}`;
-          
-          console.log('📝 Submitting transaction to Farcaster wallet...');
-          console.log('🔍 Provider details:', {
-            hasProvider: !!provider,
-            providerType: typeof provider,
-            providerMethods: Object.getOwnPropertyNames(provider)
-          });
-          
-          // Check if provider.request is actually a function
-          if (!provider.request || typeof provider.request !== 'function') {
-            throw new Error('Farcaster provider.request is not a function. Provider may not be properly initialized.');
-          }
-          
-          console.log('📋 Transaction params:', {
-            to: CONTRACTS.STEAK_TOKEN,
-            data: approveCalldata,
-            value: '0x0'
-          });
-          
-          const txHash = await provider.request({
-            method: 'eth_sendTransaction',
-            params: [{
-              to: CONTRACTS.STEAK_TOKEN as `0x${string}`,
-              data: approveCalldata as `0x${string}`,
-              value: '0x0',
-            }]
-          }) as string;
-          
-          if (!txHash) {
-            throw new Error('Farcaster wallet returned empty transaction hash. Transaction may have been rejected.');
-          }
-          
-          if (!txHash.startsWith('0x')) {
-            throw new Error(`Farcaster wallet returned invalid transaction hash format: ${txHash}`);
-          }
-          
-          console.log('✅ Farcaster approval transaction submitted:', txHash);
-          
-          // Transaction submitted successfully - refetch data and unlock UI
-          setTimeout(() => {
-            refetchAllowance();
-            refetchBalance();
-            setIsProcessing(false);
-          }, 3000);
-        } catch (sdkError) {
-          console.error('❌ Farcaster wallet provider error:', sdkError);
-          
-          // Check if user canceled or if it's a timeout
-          const errorMessage = (sdkError as Error)?.message || '';
-          if (errorMessage.includes('timeout')) {
-            console.log('⏰ Transaction request timed out - user may have canceled');
-          } else if (errorMessage.includes('rejected') || errorMessage.includes('denied')) {
-            console.log('❌ User rejected the transaction');
-          } else {
-            console.log('🔄 Unknown error, trying to refetch data anyway...');
-            // Still try to refetch in case transaction succeeded
-            setTimeout(() => {
-              refetchAllowance();
-              refetchBalance();
-            }, 2000);
-          }
-          
-          setIsProcessing(false);
-        }
-      } else if (address) {
-        // Use wagmi for regular web context
-        console.log('📝 Calling writeContract for approval...');
-        await writeContract({
-          address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
-          abi: ERC20_ABI,
-          functionName: 'approve',
-          args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
-        });
-        console.log('✅ Approve transaction submitted');
-      } else {
-        console.error('No wallet connection available');
-        setIsProcessing(false);
-      }
+      // Use wagmi writeContract - this should work with Farcaster connector
+      await writeContract({
+        address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
+      });
+      console.log('✅ Approve transaction submitted via wagmi');
     } catch (err) {
       console.error('Approve failed:', err);
       setIsProcessing(false);
@@ -230,101 +143,16 @@ export function useStaking() {
         context: isFarcasterContext ? 'Farcaster' : 'Web'
       });
 
-      // In Farcaster context, let the transaction proceed - Farcaster will handle wallet prompting
-      if (isFarcasterContext && !address) {
-        console.log('🔌 Farcaster context - proceeding with transaction, Farcaster will handle wallet');
-      }
+      console.log('📝 Using wagmi writeContract for staking (works in both web and Farcaster contexts)...');
       
-      if (isFarcasterContext && sdk) {
-        // Use Farcaster wallet provider for transactions in miniapp
-        console.log('📝 Using Farcaster wallet provider for stake transaction...');
-        
-        try {
-          // Get the Ethereum provider from Farcaster
-          const provider = await sdk.wallet.getEthereumProvider();
-          if (!provider) {
-            console.error('❌ No Farcaster wallet provider available');
-            setIsProcessing(false);
-            return;
-          }
-
-          // Encode stake function call data: stake(uint256)
-          const stakeCalldata = `0xa694fc3a${amountWei.toString(16).padStart(64, '0')}`;
-          
-          console.log('📝 Submitting stake transaction to Farcaster wallet...');
-          
-          // Check if provider.request is actually a function
-          if (!provider.request || typeof provider.request !== 'function') {
-            throw new Error('Farcaster provider.request is not a function. Provider may not be properly initialized.');
-          }
-          
-          console.log('📋 Stake transaction params:', {
-            to: CONTRACTS.STEAKNSTAKE,
-            data: stakeCalldata,
-            value: '0x0'
-          });
-          
-          const txHash = await provider.request({
-            method: 'eth_sendTransaction',
-            params: [{
-              to: CONTRACTS.STEAKNSTAKE as `0x${string}`,
-              data: stakeCalldata as `0x${string}`,
-              value: '0x0',
-            }]
-          }) as string;
-          
-          if (!txHash) {
-            throw new Error('Farcaster wallet returned empty transaction hash. Transaction may have been rejected.');
-          }
-          
-          if (!txHash.startsWith('0x')) {
-            throw new Error(`Farcaster wallet returned invalid transaction hash format: ${txHash}`);
-          }
-          
-          console.log('✅ Farcaster stake transaction submitted:', txHash);
-          
-          // Transaction submitted successfully - refetch data and unlock UI
-          setTimeout(() => {
-            refetchAllowance();
-            refetchBalance();
-            refetchStaked();
-            setIsProcessing(false);
-          }, 3000);
-        } catch (sdkError) {
-          console.error('❌ Farcaster wallet provider error:', sdkError);
-          
-          // Check if user canceled or if it's a timeout
-          const errorMessage = (sdkError as Error)?.message || '';
-          if (errorMessage.includes('timeout')) {
-            console.log('⏰ Transaction request timed out - user may have canceled');
-          } else if (errorMessage.includes('rejected') || errorMessage.includes('denied')) {
-            console.log('❌ User rejected the transaction');
-          } else {
-            console.log('🔄 Unknown error, trying to refetch data anyway...');
-            // Still try to refetch in case transaction succeeded
-            setTimeout(() => {
-              refetchAllowance();
-              refetchBalance();
-              refetchStaked();
-            }, 2000);
-          }
-          
-          setIsProcessing(false);
-        }
-      } else if (address) {
-        // Use wagmi for regular web context
-        console.log('📝 Calling writeContract for staking...');
-        await writeContract({
-          address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
-          abi: STEAKNSTAKE_ABI,
-          functionName: 'stake',
-          args: [amountWei],
-        });
-        console.log('✅ Stake transaction submitted');
-      } else {
-        console.error('No wallet connection available');
-        setIsProcessing(false);
-      }
+      // Use wagmi writeContract - this should work with Farcaster connector
+      await writeContract({
+        address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
+        abi: STEAKNSTAKE_ABI,
+        functionName: 'stake',
+        args: [amountWei],
+      });
+      console.log('✅ Stake transaction submitted via wagmi');
     } catch (err) {
       console.error('Stake failed:', err);
       setIsProcessing(false);

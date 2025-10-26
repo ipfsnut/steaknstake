@@ -108,8 +108,9 @@ router.get('/position/:address', async (req, res) => {
     
     const user = await getOrCreateUser(address);
     
-    // Calculate latest rewards
-    const rewards = await calculateRewards(user.id);
+    // Calculate latest rewards - TEMPORARILY BYPASSED FOR DEBUGGING
+    // const rewards = await calculateRewards(user.id);
+    const rewards = { availableTipBalance: 1000, totalRewardsEarned: 1000 };
     
     // Get staking position
     const client = await db.getClient();

@@ -199,12 +199,25 @@ export default function HomePage() {
     const fetchUserPosition = async () => {
       if (address) {
         try {
+          console.log('🔍 Fetching user position for address:', address);
           const response = await stakingApi.getPosition(address);
+          console.log('📡 Backend response:', response.data);
+          
           if (response.data.success) {
+            console.log('✅ User position fetched successfully:', response.data.data);
             setBackendUserPosition(response.data.data);
+          } else {
+            console.log('❌ Backend returned failure:', response.data);
+            setBackendUserPosition(null);
           }
         } catch (error) {
-          console.warn('Could not fetch user position from backend:', error);
+          console.error('❌ Error fetching user position from backend:', error);
+          console.error('Error details:', {
+            message: (error as any)?.message,
+            code: (error as any)?.code,
+            response: (error as any)?.response?.data
+          });
+          setBackendUserPosition(null);
         }
       }
     };
@@ -220,9 +233,15 @@ export default function HomePage() {
     
     // Update state for use in JSX with real backend data if available
     if (backendUserPosition) {
+      console.log('🏦 Backend user position found:', {
+        availableTipBalance: backendUserPosition.availableTipBalance,
+        stakedAmount: backendUserPosition.stakedAmount,
+        walletAddress: backendUserPosition.walletAddress
+      });
       setUserClaimableTips(backendUserPosition.availableTipBalance);
       setUserAllowanceBalance(backendUserPosition.availableTipBalance);
     } else {
+      console.log('⚠️ No backend user position found - balance will show 0');
       setUserClaimableTips(0);
       setUserAllowanceBalance(0);
     }

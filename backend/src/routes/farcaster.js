@@ -204,6 +204,14 @@ async function processTipFromFarcaster(tipData) {
     
     const tipper = tipperResult.rows[0];
     
+    // CRITICAL: Prevent self-tipping (breaks the core mechanic)
+    if (tipperFid === recipientFid) {
+      logger.warn(`Tip failed: Self-tipping attempted. ${tipperUsername} tried to tip themselves ${tipAmount} $STEAK`);
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'You cannot tip yourself! Tip allowances can only be given to others. 🥩');
+      client.release();
+      return;
+    }
+    
     // Check if tipper has sufficient balance
     const positionResult = await client.query(
       'SELECT * FROM staking_positions WHERE user_id = $1',

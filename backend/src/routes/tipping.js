@@ -53,6 +53,15 @@ router.post('/send', async (req, res) => {
       
       const tipper = tipperResult.rows[0];
       
+      // CRITICAL: Prevent self-tipping via API (check if tipper FID matches recipient FID)
+      if (tipper.farcaster_fid && tipper.farcaster_fid === recipientFid) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          error: 'You cannot tip yourself! Tip allowances can only be given to others.'
+        });
+      }
+      
       // Get tipper's staking position and available tip balance
       const positionResult = await client.query(
         'SELECT * FROM staking_positions WHERE user_id = $1',

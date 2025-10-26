@@ -106,7 +106,23 @@ router.get('/position/:address', async (req, res) => {
   try {
     const { address } = req.params;
     
-    const user = await getOrCreateUser(address);
+    // TEMPORARILY BYPASS getOrCreateUser - DIRECT QUERY
+    const client = await db.getClient();
+    const userResult = await client.query(
+      'SELECT * FROM users WHERE wallet_address = $1',
+      [address.toLowerCase()]
+    );
+    client.release();
+    
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    // const user = await getOrCreateUser(address);
     
     // Calculate latest rewards - TEMPORARILY BYPASSED FOR DEBUGGING
     // const rewards = await calculateRewards(user.id);

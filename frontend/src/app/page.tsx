@@ -91,6 +91,17 @@ export default function HomePage() {
     functionName: 'totalSupply',
   });
 
+  // Read user's allocated tips (claimable amount)
+  const { data: allocatedTips } = useReadContract({
+    address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
+    abi: STEAKNSTAKE_ABI,
+    functionName: 'allocatedTips',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address
+    }
+  });
+
   // Use staking contract integration
   const {
     currentStep,
@@ -198,11 +209,14 @@ export default function HomePage() {
         const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
         const realTotalSupply = contractTotalSupply ? parseFloat(formatEther(contractTotalSupply)) : 0;
         
+        // Get user's actual allocated tips from contract
+        const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
+        
         setStakingStats({
           totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0, // Estimate based on average stake
           totalStaked: realTotalStaked,
           totalRewardsEarned: realTotalStaked * 0.1, // Estimate 10% rewards earned
-          totalAvailableTips: realTotalStaked * 0.05 // Estimate 5% available as tips
+          totalAvailableTips: userAllocatedTips // Real allocated tips from contract
         });
         
         // Create a simple leaderboard with real user if they have stakes
@@ -225,6 +239,17 @@ export default function HomePage() {
 
     fetchData();
   }, []);
+
+  // Update stats when allocated tips change
+  useEffect(() => {
+    if (allocatedTips) {
+      const userAllocatedTips = parseFloat(formatEther(allocatedTips));
+      setStakingStats(prev => ({
+        ...prev,
+        totalAvailableTips: userAllocatedTips
+      }));
+    }
+  }, [allocatedTips]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -337,11 +362,14 @@ export default function HomePage() {
       const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
       const realTotalSupply = contractTotalSupply ? parseFloat(formatEther(contractTotalSupply)) : 0;
       
+      // Get user's actual allocated tips from contract
+      const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
+      
       setStakingStats({
         totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0,
         totalStaked: realTotalStaked,
         totalRewardsEarned: realTotalStaked * 0.1,
-        totalAvailableTips: realTotalStaked * 0.05
+        totalAvailableTips: userAllocatedTips // Real allocated tips from contract
       });
       
       // Create leaderboard with real user if they have stakes

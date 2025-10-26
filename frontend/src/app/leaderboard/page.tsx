@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useReadContract } from 'wagmi';
 import { formatEther } from 'viem';
 import { CONTRACTS, STEAKNSTAKE_ABI } from '@/lib/contracts';

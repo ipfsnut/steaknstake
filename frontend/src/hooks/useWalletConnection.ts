@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { useConnect, useAccount, useDisconnect } from 'wagmi'
-import { useSignIn, useProfile } from '@farcaster/auth-kit'
-import { useState, useEffect } from 'react'
+import { useConnect, useAccount, useDisconnect } from 'wagmi';
+import { useSignIn, useProfile } from '@farcaster/auth-kit';
+import { useEffect, useState } from 'react';
 import { useFarcasterWallet } from './useFarcasterWallet'
 
 export function useWalletConnection() {

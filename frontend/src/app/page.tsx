@@ -12,8 +12,8 @@ import { CONTRACTS, STEAKNSTAKE_ABI } from '@/lib/contracts';
 interface StakingStats {
   totalStakers: number;
   totalStaked: number;
-  totalRewardsEarned: number;
-  totalAvailableTips: number;
+  tipsEarned: number; // Total tips user has been allocated
+  tipsAvailable: number; // User's claimable balance (allocated - claimed)
 }
 
 interface TippingStats {
@@ -49,8 +49,8 @@ export default function HomePage() {
   const [stakingStats, setStakingStats] = useState<StakingStats>({
     totalStakers: 0,
     totalStaked: 0,
-    totalRewardsEarned: 0,
-    totalAvailableTips: 0
+    tipsEarned: 0,
+    tipsAvailable: 0
   });
   const [tippingStats, setTippingStats] = useState<TippingStats | null>(null);
   const [topStakers, setTopStakers] = useState<TopStaker[]>([]);
@@ -91,11 +91,22 @@ export default function HomePage() {
     functionName: 'totalSupply',
   });
 
-  // Read user's allocated tips (claimable amount)
+  // Read user's allocated tips (total earned)
   const { data: allocatedTips } = useReadContract({
     address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
     abi: STEAKNSTAKE_ABI,
     functionName: 'allocatedTips',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !!address
+    }
+  });
+
+  // Read user's claimable amount (allocated - claimed)
+  const { data: claimableAmount } = useReadContract({
+    address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
+    abi: STEAKNSTAKE_ABI,
+    functionName: 'getClaimableAmount',
     args: address ? [address] : undefined,
     query: {
       enabled: !!address
@@ -209,14 +220,15 @@ export default function HomePage() {
         const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
         const realTotalSupply = contractTotalSupply ? parseFloat(formatEther(contractTotalSupply)) : 0;
         
-        // Get user's actual allocated tips from contract
+        // Get user's actual tip data from contract
         const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
+        const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
         
         setStakingStats({
           totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0, // Estimate based on average stake
           totalStaked: realTotalStaked,
-          totalRewardsEarned: realTotalStaked * 0.1, // Estimate 10% rewards earned
-          totalAvailableTips: userAllocatedTips // Real allocated tips from contract
+          tipsEarned: userAllocatedTips, // Total tips user has been allocated
+          tipsAvailable: userClaimableTips // User's claimable balance (allocated - claimed)
         });
         
         // Create a simple leaderboard with real user if they have stakes
@@ -240,16 +252,17 @@ export default function HomePage() {
     fetchData();
   }, []);
 
-  // Update stats when allocated tips change
+  // Update stats when tip data changes
   useEffect(() => {
-    if (allocatedTips) {
-      const userAllocatedTips = parseFloat(formatEther(allocatedTips));
-      setStakingStats(prev => ({
-        ...prev,
-        totalAvailableTips: userAllocatedTips
-      }));
-    }
-  }, [allocatedTips]);
+    const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
+    const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
+    
+    setStakingStats(prev => ({
+      ...prev,
+      tipsEarned: userAllocatedTips,
+      tipsAvailable: userClaimableTips
+    }));
+  }, [allocatedTips, claimableAmount]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -362,14 +375,15 @@ export default function HomePage() {
       const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
       const realTotalSupply = contractTotalSupply ? parseFloat(formatEther(contractTotalSupply)) : 0;
       
-      // Get user's actual allocated tips from contract
+      // Get user's actual tip data from contract
       const userAllocatedTips = allocatedTips ? parseFloat(formatEther(allocatedTips)) : 0;
+      const userClaimableTips = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
       
       setStakingStats({
         totalStakers: realTotalSupply > 0 ? Math.max(1, Math.floor(realTotalStaked / 50000)) : 0,
         totalStaked: realTotalStaked,
-        totalRewardsEarned: realTotalStaked * 0.1,
-        totalAvailableTips: userAllocatedTips // Real allocated tips from contract
+        tipsEarned: userAllocatedTips, // Total tips user has been allocated
+        tipsAvailable: userClaimableTips // User's claimable balance (allocated - claimed)
       });
       
       // Create leaderboard with real user if they have stakes
@@ -1048,8 +1062,8 @@ export default function HomePage() {
                 <div className="text-sm text-gray-700 space-y-1">
                   <p><strong>Stakers:</strong> Users with active stakes</p>
                   <p><strong>$STEAK Staked:</strong> Total tokens locked in staking</p>
-                  <p><strong>Rewards Earned:</strong> Total allowances generated</p>
-                  <p><strong>Tips Available:</strong> Current claimable tip pool</p>
+                  <p><strong>Tips Earned:</strong> Total tips you've been allocated</p>
+                  <p><strong>Tips Available:</strong> Your claimable tip balance</p>
                 </div>
               </div>
             )}
@@ -1080,8 +1094,8 @@ export default function HomePage() {
                 className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 text-center border border-purple-200 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer"
               >
                 <div className="text-3xl mb-3">🎁</div>
-                <div className="text-2xl font-bold text-purple-600 mb-1">{formatNumber(stakingStats.totalRewardsEarned)}</div>
-                <div className="text-sm text-purple-700 font-medium">Rewards Earned</div>
+                <div className="text-2xl font-bold text-purple-600 mb-1">{formatNumber(stakingStats.tipsEarned)}</div>
+                <div className="text-sm text-purple-700 font-medium">Tips Earned</div>
                 <div className="text-xs text-purple-500 mt-2">→ Earn Rewards</div>
               </button>
               
@@ -1090,7 +1104,7 @@ export default function HomePage() {
                 className="bg-gradient-to-br from-pink-50 to-rose-100 rounded-2xl p-6 text-center border border-pink-200 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer"
               >
                 <div className="text-3xl mb-3">💝</div>
-                <div className="text-2xl font-bold text-pink-600 mb-1">{formatNumber(stakingStats.totalAvailableTips)}</div>
+                <div className="text-2xl font-bold text-pink-600 mb-1">{formatNumber(stakingStats.tipsAvailable)}</div>
                 <div className="text-sm text-pink-700 font-medium">Tips Available</div>
                 <div className="text-xs text-pink-500 mt-2">→ Learn Tipping</div>
               </button>

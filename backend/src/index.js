@@ -71,6 +71,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Debug endpoint to check deployment
+app.get('/api/debug/deployment', (req, res) => {
+  res.json({
+    timestamp: new Date().toISOString(),
+    selfTipProtectionEnabled: true,
+    deploymentHash: 'a96a2836f11bc99d2b572aa0ed27c74368bb9d2f',
+    lastUpdated: '2025-10-26T20:52:00Z'
+  });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({

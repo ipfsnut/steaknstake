@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useConnect } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { CONTRACTS, ERC20_ABI, STEAKNSTAKE_ABI } from '@/lib/contracts';
 import { useFarcasterWallet } from './useFarcasterWallet';
 import { useFarcasterMiniApp } from './useFarcasterMiniApp';
 
 export function useStaking() {
-  const { address } = useAccount();
+  const { address, isConnected } = useAccount();
   const { writeContract, data: hash, isPending, error } = useWriteContract();
+  const { connect, connectors } = useConnect();
   const { isFarcasterContext, isWalletConnected, getEthereumProvider } = useFarcasterWallet();
   const { user, isMiniApp, sdk } = useFarcasterMiniApp();
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
@@ -127,7 +128,7 @@ export function useStaking() {
   }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked, isFarcasterContext, address, error, isPending, isConfirming]);
 
   const approveSteak = async (amount: string) => {
-    console.log('🚀 Starting approve flow...', { amount, address, isFarcasterContext });
+    console.log('🚀 Starting approve flow...', { amount, address, isFarcasterContext, isConnected });
     
     try {
       setIsProcessing(true);
@@ -139,8 +140,23 @@ export function useStaking() {
         tokenAddress: CONTRACTS.STEAK_TOKEN,
         spenderAddress: CONTRACTS.STEAKNSTAKE,
         userAddress: address,
-        context: isFarcasterContext ? 'Farcaster' : 'Web'
+        context: isFarcasterContext ? 'Farcaster' : 'Web',
+        isConnected
       });
+
+      // In Farcaster context, ensure connector is connected
+      if (isFarcasterContext && !isConnected) {
+        console.log('🔌 Farcaster context detected but not connected - connecting...');
+        const farcasterConnector = connectors.find(c => c.id === 'farcasterMiniApp');
+        if (farcasterConnector) {
+          connect({ connector: farcasterConnector });
+          console.log('✅ Farcaster connector connection initiated');
+          // Give it a moment to connect
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          throw new Error('Farcaster connector not found');
+        }
+      }
 
       // In Farcaster context, let the transaction proceed - Farcaster will handle wallet prompting
       console.log('📝 Using wagmi writeContract for approval (works in both web and Farcaster contexts)...');
@@ -169,7 +185,7 @@ export function useStaking() {
   };
 
   const stakeTokens = async (amount: string) => {
-    console.log('🚀 Starting stake flow...', { amount, address, isFarcasterContext });
+    console.log('🚀 Starting stake flow...', { amount, address, isFarcasterContext, isConnected });
     
     try {
       setIsProcessing(true);
@@ -180,8 +196,23 @@ export function useStaking() {
         amountWei: amountWei.toString(),
         contractAddress: CONTRACTS.STEAKNSTAKE,
         userAddress: address,
-        context: isFarcasterContext ? 'Farcaster' : 'Web'
+        context: isFarcasterContext ? 'Farcaster' : 'Web',
+        isConnected
       });
+
+      // In Farcaster context, ensure connector is connected
+      if (isFarcasterContext && !isConnected) {
+        console.log('🔌 Farcaster context detected but not connected - connecting...');
+        const farcasterConnector = connectors.find(c => c.id === 'farcasterMiniApp');
+        if (farcasterConnector) {
+          connect({ connector: farcasterConnector });
+          console.log('✅ Farcaster connector connection initiated');
+          // Give it a moment to connect
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          throw new Error('Farcaster connector not found');
+        }
+      }
 
       console.log('📝 Using wagmi writeContract for staking (works in both web and Farcaster contexts)...');
       

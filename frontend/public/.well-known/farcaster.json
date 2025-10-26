@@ -7,7 +7,7 @@
   "buttonTitle": "Start staking $STEAK",
   "splashImageUrl": "https://steak.epicdylan.com/splash.png",
   "splashBackgroundColor": "#000000",
-  "webhookUrl": "https://steak.epicdylan.com/api/webhook",
+  "webhookUrl": "https://steaknstake-backend-production.up.railway.app/api/farcaster/webhook",
   "subtitle": "Stake $STEAK; tip $STEAK; grow.",
   "description": "Stake $STEAK; tip $STEAK; grow.",
   "primaryCategory": "social",

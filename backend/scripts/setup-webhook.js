@@ -9,7 +9,7 @@ require('dotenv').config();
 const fetch = require('node-fetch');
 
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
-const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://steaknstake-backend-production.up.railway.app/api/farcaster/webhook';
+const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://happy-determination-production.up.railway.app/api/farcaster/webhook';
 
 async function setupWebhook() {
   if (!NEYNAR_API_KEY) {

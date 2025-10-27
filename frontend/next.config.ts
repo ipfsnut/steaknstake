@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
     unoptimized: true
   },
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://steaknstake-backend-production.up.railway.app'
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://happy-determination-production.up.railway.app'
   },
   async headers() {
     return [

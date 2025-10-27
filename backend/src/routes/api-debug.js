@@ -5,7 +5,7 @@ const db = require('../services/database');
 // API Debug Dashboard - Test all endpoints systematically
 router.get('/dashboard', async (req, res) => {
   const baseUrl = process.env.NODE_ENV === 'production' 
-    ? 'https://steaknstake-backend-production.up.railway.app'
+    ? 'https://happy-determination-production.up.railway.app'
     : 'http://localhost:3005';
 
   const testAddress = '0x18a85ad341b2d6a2bd67fbb104b4827b922a2a3c';

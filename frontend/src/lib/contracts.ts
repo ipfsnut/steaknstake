@@ -94,11 +94,32 @@ export const STEAKNSTAKE_ABI = [
     "type": "function"
   },
   {
+    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+    "name": "getAvailableTipAllowance",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+    "name": "getTotalEarnedAllowances",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {"internalType": "address", "name": "user", "type": "address"},
       {"internalType": "uint256", "name": "limit", "type": "uint256"}
     ],
     "name": "getUnclaimedEarnings",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+    "name": "getTippedOut",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"

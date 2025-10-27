@@ -187,10 +187,13 @@ router.get('/position/:address', async (req, res) => {
     
   } catch (error) {
     console.error('🚨 STAKING POSITION ERROR:', error);
+    console.error('🚨 ERROR DETAILS:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'Failed to get staking position',
-      details: error.message
+      details: error.message,
+      code: error.code,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
   

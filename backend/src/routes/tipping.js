@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
 const winston = require('winston');
+const { generateFarcasterTipHash, generateDirectTipHash, isValidTipHash } = require('../utils/tipHash');
 
 const logger = winston.createLogger({
   level: 'info',

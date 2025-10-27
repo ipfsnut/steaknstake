@@ -50,6 +50,9 @@ app.use((req, res, next) => {
 // Import database service
 const db = require('./services/database');
 
+// Import batch processor
+const { startBatchProcessor } = require('./services/batchProcessor');
+
 // Import routes with error handling
 console.log('🔍 INDEX: About to import routes...');
 
@@ -305,6 +308,9 @@ async function startServer() {
   } catch (error) {
     logger.error('❌ Database initialization error:', error);
   }
+
+  // Start batch processor for daily tip cycles
+  startBatchProcessor();
 
   // Start server
   app.listen(PORT, () => {

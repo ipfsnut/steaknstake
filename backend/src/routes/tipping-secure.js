@@ -51,8 +51,12 @@ const STEAKNSTAKE_ABI = [
 
 // Initialize ethers provider and contract (backend acts as distributor)
 const provider = new ethers.JsonRpcProvider(process.env.BASE_RPC_URL);
-const distributorWallet = new ethers.Wallet(process.env.DISTRIBUTOR_PRIVATE_KEY, provider);
-const steakNStakeContract = new ethers.Contract(STEAKNSTAKE_CONTRACT_ADDRESS, STEAKNSTAKE_ABI, distributorWallet);
+const distributorWallet = process.env.PROTOCOL_WALLET_PRIVATE_KEY && process.env.PROTOCOL_WALLET_PRIVATE_KEY !== 'your_protocol_wallet_private_key_here' 
+  ? new ethers.Wallet(process.env.PROTOCOL_WALLET_PRIVATE_KEY, provider)
+  : null;
+const steakNStakeContract = distributorWallet 
+  ? new ethers.Contract(STEAKNSTAKE_CONTRACT_ADDRESS, STEAKNSTAKE_ABI, distributorWallet)
+  : null;
 
 // POST /api/tipping/send-secure - Send a Farcaster tip with secure tipHash
 router.post('/send-secure', async (req, res) => {

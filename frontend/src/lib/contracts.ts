@@ -2,7 +2,7 @@
 export const CONTRACTS = {
   // Real deployed contract addresses on Base mainnet
   STEAK_TOKEN: process.env.NEXT_PUBLIC_STEAK_TOKEN_ADDRESS || '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07', // Your STEAK token
-  STEAKNSTAKE: process.env.NEXT_PUBLIC_STEAKNSTAKE_CONTRACT_ADDRESS || '0xE1F7DECfb1b0A31B660D29246DB078fBa95C542A', // New TipN-style SteakNStake contract
+  STEAKNSTAKE: process.env.NEXT_PUBLIC_STEAKNSTAKE_CONTRACT_ADDRESS || '0xdA9BD5c259Ae90e99158f45f00238d1BaDb3694D', // v3.0.0-tipn-tipping secure contract
 } as const;
 
 // ERC20 ABI for approvals

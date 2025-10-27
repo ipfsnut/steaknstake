@@ -1,6 +1,6 @@
 # STEAKNSTAKE WHITEPAPER
 ## Social Staking Meets Farcaster Tipping
-### Version 2.0 - October 2025
+### Version 3.0 - October 2025
 
 ---
 
@@ -33,7 +33,7 @@ This creates a sustainable economy where:
 ### Blockchain Infrastructure:
 - **Network:** Base (Ethereum Layer 2)
 - **Smart Contracts:** ERC-20 ($STEAK) + Custom Staking Contract
-- **Contract Address:** `0xE1F7DECfb1b0A31B660D29246DB078fBa95C542A` (TipN-style v2.0)
+- **Contract Address:** `0xdA9BD5c259Ae90e99158f45f00238d1BaDb3694D` (v3.0.0-tipn-tipping)
 - **Token Address:** `0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07`
 
 ### Core Components:
@@ -154,13 +154,13 @@ This creates a sustainable economy where:
 
 ## INSPIRATIONS & ACKNOWLEDGMENTS
 
-SteakNStake v2.0 is built on the shoulders of giants, particularly inspired by:
+SteakNStake v3.0 is built on the shoulders of giants, particularly inspired by:
 
 **$DEGEN** - The pioneering Farcaster-native token that proved social tokens can create real value and community. DEGEN's success in connecting social activity with economic rewards laid the foundation for social finance on Farcaster.
 
 **$TIPN** - The elegant reward distribution protocol whose `split()` + `claim()` architecture we've adopted for security and simplicity. TipN's proportional distribution model has been battle-tested and audited, providing a proven foundation for sustainable reward systems.
 
-By combining DEGEN's social innovation with TipN's technical excellence and a few tweaks, SteakNStake v2.0 offers a robust and scalable platform for social staking.
+By combining DEGEN's social innovation with TipN's technical excellence and a few tweaks, SteakNStake v3.0 offers a robust and scalable platform for social staking.
 
 ---
 
@@ -215,7 +215,7 @@ This document may be updated periodically to reflect protocol changes and improv
 
 ---
 
-**Document Version:** 2.0 (TipN-style Architecture)  
+**Document Version:** 3.0 (Secure TipN-Tipping Architecture)  
 **Last Updated:** October 27, 2025  
 **Next Review:** November 2025  
 

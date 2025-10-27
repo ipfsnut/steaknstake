@@ -155,9 +155,18 @@ router.get('/position/:address', async (req, res) => {
     client.release();
     
     if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
+      // New user - return default values
+      return res.json({
+        success: true,
+        data: {
+          walletAddress: address.toLowerCase(),
+          stakedAmount: 0,
+          totalRewardsEarned: 0,
+          availableTipBalance: 0,
+          stakedAt: null,
+          farcasterFid: null,
+          farcasterUsername: null
+        }
       });
     }
     

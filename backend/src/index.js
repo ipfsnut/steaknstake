@@ -174,8 +174,9 @@ app.use((error, req, res, next) => {
   });
 });
 
-// 404 handler
+// 404 handler - MUST BE LAST
 app.use('*', (req, res) => {
+  console.log('🚨 404 HANDLER HIT:', req.method, req.originalUrl);
   res.status(404).json({
     success: false,
     error: 'Endpoint not found',

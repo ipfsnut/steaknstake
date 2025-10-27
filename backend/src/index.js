@@ -37,15 +37,6 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Request logging
-app.use((req, res, next) => {
-  logger.info(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('User-Agent')
-  });
-  next();
-});
-
 // Import database service
 const db = require('./services/database');
 
@@ -59,6 +50,16 @@ const userRoutes = require('./routes/users');
 const farcasterRoutes = require('./routes/farcaster');
 const debugRoutes = require('./routes/debug');
 const apiDebugRoutes = require('./routes/api-debug');
+
+// Consolidated request logging
+app.use((req, res, next) => {
+  console.log('📥 INCOMING REQUEST:', req.method, req.path, req.url);
+  logger.info(`${req.method} ${req.path}`, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+  next();
+});
 
 // API routes
 console.log('🔍 INDEX: About to register staking routes...');

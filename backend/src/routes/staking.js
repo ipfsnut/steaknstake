@@ -184,10 +184,15 @@ router.get('/position/:address', async (req, res) => {
     });
     
   } catch (error) {
+    console.error('🚨 STAKING POSITION ERROR:', error);
+    console.error('🚨 ERROR STACK:', error.stack);
+    console.error('🚨 ERROR MESSAGE:', error.message);
     logger.error('Error getting staking position:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get staking position'
+      error: 'Failed to get staking position',
+      actualError: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -395,10 +400,15 @@ router.get('/stats', async (req, res) => {
     });
     
   } catch (error) {
+    console.error('🚨 STAKING STATS ERROR:', error);
+    console.error('🚨 ERROR STACK:', error.stack);
+    console.error('🚨 ERROR MESSAGE:', error.message);
     logger.error('Error getting staking stats:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get staking statistics'
+      error: 'Failed to get staking statistics',
+      actualError: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

@@ -114,6 +114,9 @@ router.post('/webhook', async (req, res) => {
       text: data?.text,
       parentHash: data?.parent_hash,
       parentAuthorFid: data?.parent_author?.fid,
+      parentAuthorUsername: data?.parent_author?.username,
+      parentAuthorDisplayName: data?.parent_author?.display_name,
+      parentAuthorData: data?.parent_author,
       timestamp: new Date().toISOString()
     });
     
@@ -210,13 +213,22 @@ async function handleCastCreated(castData) {
       text
     });
     
+    // Get recipient username with fallbacks for different field names
+    const recipientUsername = parent_author.username || parent_author.display_name || parent_author.fname || 'unknown';
+    
+    logger.info('🔍 RECIPIENT PARSING:', {
+      parentAuthor: parent_author,
+      resolvedUsername: recipientUsername,
+      availableFields: Object.keys(parent_author || {})
+    });
+    
     // Process the actual tip through the tipping system
     await processTipFromFarcaster({
       hash,
       tipperFid: author.fid,
       tipperUsername: author.username,
       recipientFid: parent_author.fid,
-      recipientUsername: parent_author.username,
+      recipientUsername: recipientUsername,
       tipAmount,
       castText: text
     });

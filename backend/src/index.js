@@ -37,6 +37,16 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// CRITICAL: Request logging MUST be before route registration
+app.use((req, res, next) => {
+  console.log('📥 INCOMING REQUEST:', req.method, req.path, req.url);
+  logger.info(`${req.method} ${req.path}`, {
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+  next();
+});
+
 // Import database service
 const db = require('./services/database');
 
@@ -72,16 +82,6 @@ try {
 } catch (error) {
   console.error('❌ INDEX: Failed to import other routes:', error);
 }
-
-// Consolidated request logging
-app.use((req, res, next) => {
-  console.log('📥 INCOMING REQUEST:', req.method, req.path, req.url);
-  logger.info(`${req.method} ${req.path}`, {
-    ip: req.ip,
-    userAgent: req.get('User-Agent')
-  });
-  next();
-});
 
 // API routes with error handling
 console.log('🔍 INDEX: About to register routes...');

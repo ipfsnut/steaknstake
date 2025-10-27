@@ -56,6 +56,7 @@ const tippingRoutes = require('./routes/tipping');
 const userRoutes = require('./routes/users');
 const farcasterRoutes = require('./routes/farcaster');
 const debugRoutes = require('./routes/debug');
+const apiDebugRoutes = require('./routes/api-debug');
 
 // API routes
 app.use('/api/staking', stakingRoutes);
@@ -64,6 +65,7 @@ app.use('/api/tipping', tippingRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/farcaster', farcasterRoutes);
 app.use('/api/debug', debugRoutes);
+app.use('/api/api-debug', apiDebugRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

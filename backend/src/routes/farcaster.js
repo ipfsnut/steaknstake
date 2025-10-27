@@ -103,7 +103,16 @@ router.post('/webhook', async (req, res) => {
   try {
     const { type, data } = req.body;
     
-    logger.info('Received Farcaster webhook:', { type, data });
+    logger.info('🌐 WEBHOOK RECEIVED:', { 
+      type, 
+      castHash: data?.hash, 
+      authorFid: data?.author?.fid,
+      authorUsername: data?.author?.username,
+      text: data?.text,
+      parentHash: data?.parent_hash,
+      parentAuthorFid: data?.parent_author?.fid,
+      timestamp: new Date().toISOString()
+    });
     
     switch (type) {
       case 'cast.created':
@@ -135,26 +144,58 @@ async function handleCastCreated(castData) {
   try {
     const { hash, author, text, parent_hash, parent_author } = castData;
     
-    // Check if this is a reply with a tip command
-    if (!parent_hash || !parent_author) return;
+    logger.info('🔍 CAST ANALYSIS:', {
+      hash,
+      authorFid: author?.fid,
+      authorUsername: author?.username,
+      text,
+      hasParent: !!parent_hash,
+      parentHash: parent_hash,
+      parentAuthorFid: parent_author?.fid,
+      parentAuthorUsername: parent_author?.username
+    });
     
-    // Look for tip patterns: "25 $STEAK", "$STEAK 10", "@steaknstake 5 $STEAK"
+    // Check if this is a reply with a tip command
+    if (!parent_hash || !parent_author) {
+      logger.info('❌ SKIP: Not a reply (no parent_hash or parent_author)');
+      return;
+    }
+    
+    // Early check: Must mention @steaknstake to be a tip
+    if (!text.toLowerCase().includes('@steaknstake')) {
+      logger.info('❌ SKIP: No bot mention (@steaknstake not found in text)');
+      return;
+    }
+    
+    // REQUIRED: Bot must be tagged for tip detection
     const tipPatterns = [
-      /(\d+(?:\.\d+)?)\s*\$STEAK/i,
-      /\$STEAK\s*(\d+(?:\.\d+)?)/i,
-      /@steaknstake\s+(\d+(?:\.\d+)?)\s*\$STEAK/i
+      /@steaknstake\s+(\d+(?:\.\d+)?)\s*\$STEAK/i  // "@steaknstake 100 $STEAK"
     ];
     
+    logger.info('🔎 TIP PATTERN MATCHING:', {
+      text,
+      patterns: tipPatterns.map(p => p.toString())
+    });
+    
     let tipAmount = null;
-    for (const pattern of tipPatterns) {
+    for (let i = 0; i < tipPatterns.length; i++) {
+      const pattern = tipPatterns[i];
       const match = text.match(pattern);
+      logger.info(`📝 Pattern ${i + 1} (${pattern}):`, { 
+        matched: !!match, 
+        groups: match ? match : 'no match' 
+      });
       if (match) {
         tipAmount = parseFloat(match[1]);
+        logger.info(`✅ TIP DETECTED: ${tipAmount} STEAK`);
         break;
       }
     }
     
-    if (!tipAmount || tipAmount <= 0) return;
+    if (!tipAmount || tipAmount <= 0) {
+      logger.info('❌ SKIP: No valid tip amount found', { tipAmount });
+      return;
+    }
     
     logger.info('Tip detected:', {
       hash,
@@ -197,7 +238,7 @@ async function processTipFromFarcaster(tipData) {
     
     if (tipperResult.rows.length === 0) {
       logger.warn(`Tip failed: Tipper FID ${tipperFid} (@${tipperUsername}) not found in database`);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Please connect your wallet at steak.epicdylan.com first!');
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Connect your wallet at steak.epicdylan.com first! Then use: @steaknstake [amount] $STEAK');
       client.release();
       return;
     }

@@ -936,7 +936,7 @@ export default function HomePage() {
                 <h3 className="font-bold text-purple-800 mb-2">How to Tip on Farcaster</h3>
                 <div className="text-sm text-purple-700 space-y-1">
                   <p><strong>Reply to any cast with:</strong></p>
-                  <p>• "25 $STEAK" or "$STEAK 25" or "@steaknstake 25 $STEAK"</p>
+                  <p>• "@steaknstake 25 $STEAK" (must tag the bot)</p>
                   <p>• Tips processed daily at midnight UTC</p>
                   <p>• Recipients claim at steak.epicdylan.com</p>
                   <p>• You can only tip up to your allowance balance</p>

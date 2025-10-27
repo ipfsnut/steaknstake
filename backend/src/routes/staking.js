@@ -131,6 +131,17 @@ router.get('/test/:address', async (req, res) => {
 // GET /api/staking/position/:address - Get user's staking position
 router.get('/position/:address', async (req, res) => {
   console.log('🎯 ROUTE CALLED: /api/staking/position/' + req.params.address);
+  
+  // QUICK TEST - Just return success to verify route works
+  return res.json({
+    success: true,
+    message: 'Route is working!',
+    address: req.params.address,
+    timestamp: new Date().toISOString()
+  });
+  
+  // TODO: Restore full implementation
+  /*
   try {
     const { address } = req.params;
     console.log('🎯 INSIDE TRY BLOCK, address:', address);
@@ -197,6 +208,7 @@ router.get('/position/:address', async (req, res) => {
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
+  */
 });
 
 // POST /api/staking/stake - Stake STEAK tokens

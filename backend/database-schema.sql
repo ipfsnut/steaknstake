@@ -38,13 +38,15 @@ CREATE TABLE IF NOT EXISTS staking_transactions (
 CREATE TABLE IF NOT EXISTS farcaster_tips (
     id SERIAL PRIMARY KEY,
     tipper_user_id INTEGER REFERENCES users(id),
+    tipper_wallet_address VARCHAR(42), -- Tipper's wallet address
     recipient_fid INTEGER NOT NULL,
     recipient_username VARCHAR(100),
+    recipient_wallet_address VARCHAR(42), -- Recipient's wallet address (when known)
     tip_amount DECIMAL(18, 8) NOT NULL,
     cast_hash VARCHAR(100), -- Farcaster cast identifier
     cast_url VARCHAR(500),
     message TEXT,
-    status VARCHAR(20) DEFAULT 'PENDING', -- 'PENDING', 'SENT', 'FAILED'
+    status VARCHAR(20) DEFAULT 'PENDING', -- 'PENDING', 'PENDING_WALLET', 'CLAIMABLE', 'SENT', 'FAILED'
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     processed_at TIMESTAMP
 );

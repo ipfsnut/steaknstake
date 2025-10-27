@@ -238,28 +238,59 @@ async function processTipFromFarcaster(tipData) {
         WHERE user_id = $3
       `, [tipAmount, new Date(), tipper.id]);
       
-      // Create tip record
-      const tipResult = await client.query(`
-        INSERT INTO farcaster_tips 
-        (tipper_user_id, recipient_fid, recipient_username, tip_amount, cast_hash, cast_url, message, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'SENT')
-        RETURNING *
-      `, [
-        tipper.id,
-        recipientFid,
-        recipientUsername,
-        tipAmount,
-        hash,
-        `https://warpcast.com/~/conversations/${hash}`,
-        castText
-      ]);
+      // Find recipient wallet address by FID
+      const recipientResult = await client.query(
+        'SELECT wallet_address FROM users WHERE farcaster_fid = $1',
+        [recipientFid]
+      );
+      
+      if (recipientResult.rows.length === 0) {
+        // Recipient hasn't connected wallet yet - create pending tip with FID only
+        logger.info(`Tip pending: @${recipientUsername} (FID: ${recipientFid}) hasn't connected wallet yet`);
+        
+        const tipResult = await client.query(`
+          INSERT INTO farcaster_tips 
+          (tipper_user_id, recipient_fid, recipient_username, tip_amount, cast_hash, cast_url, message, status)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING_WALLET')
+          RETURNING *
+        `, [
+          tipper.id,
+          recipientFid,
+          recipientUsername,
+          tipAmount,
+          hash,
+          `https://warpcast.com/~/conversations/${hash}`,
+          castText
+        ]);
+        
+        await postTipPending(hash, tipperUsername, recipientUsername, tipAmount);
+        
+      } else {
+        // Recipient has wallet - create claimable tip with wallet address
+        const recipientWallet = recipientResult.rows[0].wallet_address;
+        
+        const tipResult = await client.query(`
+          INSERT INTO farcaster_tips 
+          (tipper_user_id, tipper_wallet_address, recipient_fid, recipient_username, recipient_wallet_address, tip_amount, cast_hash, cast_url, message, status)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'CLAIMABLE')
+          RETURNING *
+        `, [
+          tipper.id,
+          tipper.wallet_address,
+          recipientFid,
+          recipientUsername,
+          recipientWallet,
+          tipAmount,
+          hash,
+          `https://warpcast.com/~/conversations/${hash}`,
+          castText
+        ]);
+        
+        logger.info(`✅ Tip processed successfully: ${tipAmount} $STEAK from @${tipperUsername} to @${recipientUsername} (${recipientWallet})`);
+        await postTipSuccess(hash, tipperUsername, recipientUsername, tipAmount, tipResult.rows[0].id);
+      }
       
       await client.query('COMMIT');
-      
-      logger.info(`✅ Tip processed successfully: ${tipAmount} $STEAK from @${tipperUsername} to @${recipientUsername}`);
-      
-      // Post success confirmation
-      await postTipSuccess(hash, tipperUsername, recipientUsername, tipAmount, tipResult.rows[0].id);
       
     } catch (error) {
       await client.query('ROLLBACK');
@@ -285,6 +316,19 @@ async function postTipSuccess(parentHash, tipperUsername, recipientUsername, amo
     await postToFarcaster(confirmationText, parentHash);
   } catch (error) {
     logger.error('Error posting tip success:', error);
+  }
+}
+
+// Helper function to post pending tip notification
+async function postTipPending(parentHash, tipperUsername, recipientUsername, amount) {
+  try {
+    const confirmationText = `⏳ Tip pending! @${tipperUsername} tipped ${amount} $STEAK to @${recipientUsername}!
+
+💝 @${recipientUsername}, connect your wallet at steak.epicdylan.com to claim your tip!`;
+
+    await postToFarcaster(confirmationText, parentHash);
+  } catch (error) {
+    logger.error('Error posting tip pending:', error);
   }
 }
 

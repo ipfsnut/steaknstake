@@ -55,20 +55,34 @@ async function processPendingTips() {
   try {
     logger.info('📊 Starting batch tip processing...');
     
-    // Get all unprocessed tips from the last 24 hours
-    const pendingTipsResult = await client.query(`
+    // Convert any pending tips to claimable if recipients have connected wallets
+    await client.query(`
+      UPDATE farcaster_tips 
+      SET 
+        status = 'CLAIMABLE',
+        recipient_wallet_address = u.wallet_address,
+        tipper_wallet_address = tu.wallet_address
+      FROM users u, users tu
+      WHERE farcaster_tips.status = 'PENDING_WALLET'
+      AND u.farcaster_fid = farcaster_tips.recipient_fid
+      AND tu.id = farcaster_tips.tipper_user_id
+      AND u.wallet_address IS NOT NULL
+    `);
+    
+    // Get all claimable tips (those with recipient wallet addresses)
+    const claimableTipsResult = await client.query(`
       SELECT 
         ft.*,
         u.wallet_address as tipper_wallet,
         u.farcaster_username as tipper_username
       FROM farcaster_tips ft
       JOIN users u ON ft.tipper_user_id = u.id
-      WHERE ft.status = 'SENT' 
-      AND ft.created_at >= NOW() - INTERVAL '24 hours'
+      WHERE ft.status = 'CLAIMABLE'
+      AND ft.recipient_wallet_address IS NOT NULL
       ORDER BY ft.created_at ASC
     `);
     
-    const pendingTips = pendingTipsResult.rows;
+    const pendingTips = claimableTipsResult.rows;
     logger.info(`📝 Found ${pendingTips.length} pending tips to process`);
     
     if (pendingTips.length === 0) {
@@ -76,13 +90,16 @@ async function processPendingTips() {
       return;
     }
     
-    // Group tips by recipient for batch processing
+    // Group tips by recipient wallet address for batch processing
     const tipsByRecipient = {};
     let totalTipAmount = 0;
     
     for (const tip of pendingTips) {
-      if (!tipsByRecipient[tip.recipient_fid]) {
-        tipsByRecipient[tip.recipient_fid] = {
+      const recipientWallet = tip.recipient_wallet_address;
+      
+      if (!tipsByRecipient[recipientWallet]) {
+        tipsByRecipient[recipientWallet] = {
+          recipientWallet: recipientWallet,
           recipientFid: tip.recipient_fid,
           recipientUsername: tip.recipient_username,
           tips: [],
@@ -90,8 +107,8 @@ async function processPendingTips() {
         };
       }
       
-      tipsByRecipient[tip.recipient_fid].tips.push(tip);
-      tipsByRecipient[tip.recipient_fid].totalAmount += parseFloat(tip.tip_amount);
+      tipsByRecipient[recipientWallet].tips.push(tip);
+      tipsByRecipient[recipientWallet].totalAmount += parseFloat(tip.tip_amount);
       totalTipAmount += parseFloat(tip.tip_amount);
     }
     

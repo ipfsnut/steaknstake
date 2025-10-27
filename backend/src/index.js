@@ -131,6 +131,7 @@ if (farcasterRoutes) app.use('/api/farcaster', farcasterRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  console.log('🏥 HEALTH ENDPOINT CALLED');
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),

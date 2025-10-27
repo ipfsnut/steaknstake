@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const winston = require('winston');
 const db = require('./database');
 const { callContractSplit } = require('./contractService');
+const { ethers } = require('ethers');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -172,9 +173,13 @@ async function allocateDailyTipAllowances() {
       return;
     }
     
-    // Calculate daily reward amount (configurable)
-    const dailyRewardPool = parseFloat(process.env.DAILY_REWARD_POOL || '100'); // 100 STEAK per day default
-    logger.info(`💰 Daily reward pool: ${dailyRewardPool} STEAK`);
+    // Calculate daily reward amount dynamically based on protocol wallet balance
+    const protocolWalletBalance = await getProtocolWalletBalance();
+    const allocationPercentage = parseFloat(process.env.DAILY_ALLOCATION_PERCENTAGE || '0.5'); // 0.5% default
+    const dailyRewardPool = protocolWalletBalance * (allocationPercentage / 100);
+    
+    logger.info(`💰 Protocol wallet balance: ${protocolWalletBalance.toLocaleString()} STEAK`);
+    logger.info(`📊 Daily allocation: ${allocationPercentage}% = ${dailyRewardPool.toLocaleString()} STEAK`);
     
     // Call smart contract split() function to create tip allowances
     await processContractSplit(dailyRewardPool);
@@ -285,10 +290,40 @@ async function testContractSplit(amount = 1) {
   }
 }
 
+// Get protocol wallet STEAK balance from contract
+async function getProtocolWalletBalance() {
+  try {
+    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'https://mainnet.base.org');
+    const steakTokenAddress = process.env.STEAK_TOKEN_ADDRESS || '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
+    const protocolWalletAddress = process.env.PROTOCOL_WALLET_ADDRESS || '0xD31C0C3BdDAcc482Aa5fE64d27cDDBaB72864733';
+    
+    const ERC20_ABI = [
+      'function balanceOf(address owner) view returns (uint256)'
+    ];
+    
+    const steakToken = new ethers.Contract(steakTokenAddress, ERC20_ABI, provider);
+    const balance = await steakToken.balanceOf(protocolWalletAddress);
+    
+    // Convert from wei to STEAK (18 decimals)
+    const balanceInSteak = parseFloat(ethers.formatEther(balance));
+    
+    logger.info(`💰 Protocol wallet balance: ${balanceInSteak.toLocaleString()} STEAK`);
+    return balanceInSteak;
+    
+  } catch (error) {
+    logger.error('❌ Failed to get protocol wallet balance:', error);
+    // Fallback to a default amount if we can't read the balance
+    const fallbackAmount = 100000; // 100k STEAK fallback
+    logger.warn(`⚠️ Using fallback balance: ${fallbackAmount} STEAK`);
+    return fallbackAmount;
+  }
+}
+
 module.exports = {
   startBatchProcessor,
   triggerBatchProcessing,
   processPendingTips,
   testContractSplit,
-  runDailyTipCycle
+  runDailyTipCycle,
+  getProtocolWalletBalance
 };

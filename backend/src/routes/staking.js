@@ -151,12 +151,18 @@ router.get('/position/:address', async (req, res) => {
       });
     }
     
-    // Get user and staking data from database using the database service
-    console.log('🎯 About to get database client...');
+    // Simple database test first
     const client = await db.getClient();
-    console.log('🎯 Database client obtained successfully');
+    const testResult = await client.query('SELECT NOW() as current_time');
+    client.release();
     
-    const result = await client.query(`
+    if (!testResult || !testResult.rows) {
+      throw new Error('Database test query failed');
+    }
+    
+    // Now get user data
+    const client2 = await db.getClient();
+    const result = await client2.query(`
       SELECT 
         u.wallet_address,
         u.farcaster_fid,
@@ -170,8 +176,7 @@ router.get('/position/:address', async (req, res) => {
       WHERE u.wallet_address = $1
     `, [address.toLowerCase()]);
     
-    console.log('🎯 Database query completed, result rows:', result.rows.length);
-    client.release();
+    client2.release();
     
     if (result.rows.length === 0) {
       // New user - return default values

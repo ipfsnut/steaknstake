@@ -135,50 +135,17 @@ router.get('/position/:address', async (req, res) => {
   try {
     const { address } = req.params;
     
-    // TEMPORARY LAUNCH VERSION - Return your real data for launch
-    if (address.toLowerCase() === '0x18a85ad341b2d6a2bd67fbb104b4827b922a2a3c') {
-      return res.json({
-        success: true,
-        data: {
-          walletAddress: '0x18a85ad341b2d6a2bd67fbb104b4827b922a2a3c',
-          stakedAmount: 110,
-          totalRewardsEarned: 0,
-          availableTipBalance: 1110,
-          stakedAt: '2025-10-26T17:26:43.000Z',
-          farcasterFid: 8573,
-          farcasterUsername: 'epicdylan'
-        }
-      });
-    }
-    
-    // Simple database test first
+    // Get user data with simplified query
     const client = await db.getClient();
-    const testResult = await client.query('SELECT NOW() as current_time');
-    client.release();
     
-    if (!testResult || !testResult.rows) {
-      throw new Error('Database test query failed');
-    }
+    // First check if user exists
+    const userResult = await client.query(
+      'SELECT id, wallet_address, farcaster_fid, farcaster_username FROM users WHERE wallet_address = $1',
+      [address.toLowerCase()]
+    );
     
-    // Now get user data
-    const client2 = await db.getClient();
-    const result = await client2.query(`
-      SELECT 
-        u.wallet_address,
-        u.farcaster_fid,
-        u.farcaster_username,
-        sp.staked_amount,
-        sp.total_rewards_earned,
-        sp.available_tip_balance,
-        sp.staked_at
-      FROM users u
-      LEFT JOIN staking_positions sp ON u.id = sp.user_id
-      WHERE u.wallet_address = $1
-    `, [address.toLowerCase()]);
-    
-    client2.release();
-    
-    if (result.rows.length === 0) {
+    if (userResult.rows.length === 0) {
+      client.release();
       // New user - return default values
       return res.json({
         success: true,
@@ -194,18 +161,28 @@ router.get('/position/:address', async (req, res) => {
       });
     }
     
-    const userData = result.rows[0];
+    const user = userResult.rows[0];
+    
+    // Get staking position
+    const positionResult = await client.query(
+      'SELECT staked_amount, total_rewards_earned, available_tip_balance, staked_at FROM staking_positions WHERE user_id = $1',
+      [user.id]
+    );
+    
+    client.release();
+    
+    const position = positionResult.rows[0];
     
     return res.json({
       success: true,
       data: {
-        walletAddress: userData.wallet_address,
-        stakedAmount: parseFloat(userData.staked_amount || 0),
-        totalRewardsEarned: parseFloat(userData.total_rewards_earned || 0),
-        availableTipBalance: parseFloat(userData.available_tip_balance || 0),
-        stakedAt: userData.staked_at,
-        farcasterFid: userData.farcaster_fid,
-        farcasterUsername: userData.farcaster_username
+        walletAddress: user.wallet_address,
+        stakedAmount: position ? parseFloat(position.staked_amount) : 0,
+        totalRewardsEarned: position ? parseFloat(position.total_rewards_earned) : 0,
+        availableTipBalance: position ? parseFloat(position.available_tip_balance) : 0,
+        stakedAt: position ? position.staked_at : null,
+        farcasterFid: user.farcaster_fid,
+        farcasterUsername: user.farcaster_username
       }
     });
     

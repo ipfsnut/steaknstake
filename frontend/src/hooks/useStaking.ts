@@ -142,13 +142,12 @@ export function useStaking() {
         isConnected
       });
 
-      // Add chain ID explicitly for Farcaster miniapp compatibility
+      // Remove explicit chainId to avoid connector issues
       writeContract({
         address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'approve',
         args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
-        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Approve transaction submitted');
@@ -198,13 +197,12 @@ export function useStaking() {
         isConnected
       });
 
-      // Add chain ID explicitly for Farcaster miniapp compatibility
+      // Remove explicit chainId to avoid connector issues
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'stake',
         args: [amountWei],
-        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Stake transaction submitted');
@@ -245,13 +243,12 @@ export function useStaking() {
       
       const amountWei = parseEther(amount);
       
-      // Add chain ID explicitly for Farcaster miniapp compatibility
+      // Remove explicit chainId to avoid connector issues
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'unstake',
         args: [amountWei],
-        chainId: 8453, // Base mainnet
       });
     } catch (err: any) {
       console.error('Unstake failed:', err);

@@ -213,13 +213,38 @@ async function handleCastCreated(castData) {
       text
     });
     
-    // Get recipient username with fallbacks for different field names
-    const recipientUsername = parent_author.username || parent_author.display_name || parent_author.fname || 'unknown';
+    // Get recipient username by fetching user details from Neynar API using FID
+    let recipientUsername = 'unknown';
     
-    logger.info('🔍 RECIPIENT PARSING:', {
-      parentAuthor: parent_author,
-      resolvedUsername: recipientUsername,
-      availableFields: Object.keys(parent_author || {})
+    if (parent_author?.fid) {
+      try {
+        logger.info('🔍 FETCHING PARENT AUTHOR DETAILS:', { parentAuthorFid: parent_author.fid });
+        
+        const userResponse = await axios.get(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${parent_author.fid}`, {
+          headers: {
+            'accept': 'application/json',
+            'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC'
+          }
+        });
+        
+        if (userResponse.data?.users?.[0]?.username) {
+          recipientUsername = userResponse.data.users[0].username;
+          logger.info('✅ RESOLVED RECIPIENT USERNAME:', { recipientUsername });
+        } else {
+          logger.warn('⚠️ No username found in Neynar response:', userResponse.data);
+        }
+        
+      } catch (error) {
+        logger.error('❌ Failed to fetch parent author details:', error.message);
+        recipientUsername = `user_${parent_author.fid}`; // Fallback to FID-based name
+      }
+    } else {
+      logger.warn('⚠️ No parent_author.fid available for recipient lookup');
+    }
+    
+    logger.info('🔍 FINAL RECIPIENT PARSING:', {
+      parentAuthorFid: parent_author?.fid,
+      resolvedUsername: recipientUsername
     });
     
     // Process the actual tip through the tipping system

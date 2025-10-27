@@ -302,16 +302,29 @@ async function processTipFromFarcaster(tipData) {
       return;
     }
     
-    // Check if tipper has sufficient balance
+    // Check daily allowance using new system
     const positionResult = await client.query(
-      'SELECT * FROM staking_positions WHERE user_id = $1',
-      [tipper.id]
+      'SELECT * FROM staker_positions WHERE wallet_address = $1',
+      [tipper.wallet_address.toLowerCase()]
     );
     
-    if (positionResult.rows.length === 0 || parseFloat(positionResult.rows[0].available_tip_balance) < tipAmount) {
-      const currentBalance = positionResult.rows.length > 0 ? parseFloat(positionResult.rows[0].available_tip_balance) : 0;
-      logger.warn(`Tip failed: Insufficient balance. ${tipperUsername} has ${currentBalance} but tried to tip ${tipAmount}`);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, `Insufficient balance! You have ${currentBalance.toFixed(2)} $STEAK available to tip.`);
+    if (positionResult.rows.length === 0) {
+      logger.warn(`Tip failed: Tipper ${tipperUsername} not found in staker_positions`);
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'You need to stake STEAK first at steak.epicdylan.com!');
+      client.release();
+      return;
+    }
+    
+    const position = positionResult.rows[0];
+    const dailyAllowanceStart = parseFloat(position.daily_allowance_start) || 0;
+    const dailyTipsSent = parseFloat(position.daily_tips_sent) || 0;
+    const remainingBalance = dailyAllowanceStart - dailyTipsSent;
+    
+    logger.info(`💰 Daily allowance check: ${dailyAllowanceStart} start, ${dailyTipsSent} sent, ${remainingBalance} remaining`);
+    
+    if (remainingBalance < tipAmount) {
+      logger.warn(`Tip failed: Insufficient daily allowance. ${tipperUsername} has ${remainingBalance} remaining but tried to tip ${tipAmount}`);
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, `Insufficient allowance! You have ${remainingBalance.toFixed(2)} $STEAK remaining today.`);
       client.release();
       return;
     }
@@ -319,14 +332,14 @@ async function processTipFromFarcaster(tipData) {
     try {
       await client.query('BEGIN');
       
-      // Deduct from tipper's balance
+      // Update daily tips sent (don't touch contract until batch processing)
       await client.query(`
-        UPDATE staking_positions 
+        UPDATE staker_positions 
         SET 
-          available_tip_balance = available_tip_balance - $1,
+          daily_tips_sent = daily_tips_sent + $1,
           updated_at = $2
-        WHERE user_id = $3
-      `, [tipAmount, new Date(), tipper.id]);
+        WHERE wallet_address = $3
+      `, [tipAmount, new Date(), tipper.wallet_address.toLowerCase()]);
       
       // Find recipient wallet address by FID
       const recipientResult = await client.query(

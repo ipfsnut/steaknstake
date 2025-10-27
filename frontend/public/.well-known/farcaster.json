@@ -1,27 +1,20 @@
 {
-  "version": "1",
-  "name": "Steak 'n' Stake",
-  "iconUrl": "https://steak.epicdylan.com/SteakNStake.png",
-  "homeUrl": "https://steak.epicdylan.com",
-  "imageUrl": "https://steak.epicdylan.com/SteakNStake.png",
-  "buttonTitle": "Start staking $STEAK",
-  "splashImageUrl": "https://steak.epicdylan.com/SteakNStake.png",
-  "splashBackgroundColor": "#000000",
-  "webhookUrl": "https://happy-determination-production.up.railway.app/api/farcaster/webhook",
-  "subtitle": "Stake $STEAK; tip $STEAK; grow.",
-  "description": "Stake $STEAK; tip $STEAK; grow.",
-  "primaryCategory": "social",
-  "screenshotUrls": ["https://steak.epicdylan.com/SteakNStake.png"],
-  "heroImageUrl": "https://steak.epicdylan.com/SteakNStake.png",
-  "tags": ["social", "community", "steak", "staking"],
-  "tagline": "Stake and tip!",
-  "ogTitle": "Steak 'n Stake",
-  "ogDescription": "Stake STEAK; tip STEAK; grow.",
-  "castShareUrl": "https://warpcast.com/~/compose?text=Check%20out%20SteakNStake%20-%20stake%20%24STEAK%20and%20tip%20creators!%20https%3A//steak.epicdylan.com",
-  "ogImageUrl": "https://steak.epicdylan.com/SteakNStake.png",
   "accountAssociation": {
     "header": "eyJmaWQiOjg1NzMsInR5cGUiOiJhdXRoIiwia2V5IjoiMHgxOEE4NWFkMzQxYjJENkEyYmQ2N2ZiYjEwNEI0ODI3QjkyMmEyQTNjIn0",
     "payload": "eyJkb21haW4iOiJzdGVhay5lcGljZHlsYW4uY29tIn0",
     "signature": "ueC90Bzixwoue6z43di155NEot4lT9JkEoN0SBpbHP970nxBKnvZUVzQU4i68NrWqP5NYLN5kav/cSkHb3I4PBw="
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Steak 'n' Stake",
+    "iconUrl": "https://steak.epicdylan.com/SteakNStake.png",
+    "homeUrl": "https://steak.epicdylan.com",
+    "splashImageUrl": "https://steak.epicdylan.com/SteakNStake.png",
+    "splashBackgroundColor": "#000000",
+    "webhookUrl": "https://happy-determination-production.up.railway.app/api/farcaster/webhook",
+    "subtitle": "Stake $STEAK; tip $STEAK; grow.",
+    "description": "Stake $STEAK; tip $STEAK; grow.",
+    "primaryCategory": "social",
+    "tags": ["social", "community", "steak", "staking"]
   }
 }

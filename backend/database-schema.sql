@@ -19,7 +19,10 @@ CREATE TABLE IF NOT EXISTS staking_positions (
     staked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_reward_calculated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     total_rewards_earned DECIMAL(18, 8) NOT NULL DEFAULT 0,
-    available_tip_balance DECIMAL(18, 8) NOT NULL DEFAULT 0,
+    available_tip_balance DECIMAL(18, 8) NOT NULL DEFAULT 0, -- Legacy field, will be replaced
+    daily_allowance_start DECIMAL(18, 8) NOT NULL DEFAULT 0, -- Day's starting allowance from contract
+    daily_tips_sent DECIMAL(18, 8) NOT NULL DEFAULT 0, -- Total tips sent today
+    last_allowance_reset DATE, -- Last date allowance was reset
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

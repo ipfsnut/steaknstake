@@ -902,12 +902,13 @@ export default function HomePage() {
             
             {showTipHelp && (
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-6">
-                <h3 className="font-bold text-purple-800 mb-2">About Tipping</h3>
+                <h3 className="font-bold text-purple-800 mb-2">How to Tip on Farcaster</h3>
                 <div className="text-sm text-purple-700 space-y-1">
-                  <p>• Reply to any Farcaster cast with "25 $STEAK"</p>
-                  <p>• Bot @steaknstake processes tips in evening batches</p>
+                  <p><strong>Reply to any cast with:</strong></p>
+                  <p>• "25 $STEAK" or "$STEAK 25" or "@steaknstake 25 $STEAK"</p>
+                  <p>• Tips processed daily at midnight UTC</p>
+                  <p>• Recipients claim at steak.epicdylan.com</p>
                   <p>• You can only tip up to your allowance balance</p>
-                  <p>• Tips are deducted immediately when detected</p>
                 </div>
               </div>
             )}

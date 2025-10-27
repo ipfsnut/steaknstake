@@ -203,9 +203,15 @@ async function startServer() {
 
   // Start server
   app.listen(PORT, () => {
+    console.log(`🚀 SERVER STARTED ON PORT ${PORT} - READY FOR REQUESTS`);
     logger.info(`🥩 SteakNStake Backend running on port ${PORT}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
     logger.info('🎯 Social Tipping with Farcaster Integration Ready');
+    
+    // Test that request handling works
+    setTimeout(() => {
+      console.log('⏰ KEEPALIVE CHECK - SERVER STILL RUNNING');
+    }, 5000);
   });
 }
 

@@ -6,7 +6,7 @@
  */
 
 require('dotenv').config();
-const fetch = require('node-fetch');
+const { default: fetch } = require('node-fetch');
 
 const NEYNAR_API_KEY = process.env.NEYNAR_API_KEY;
 const WEBHOOK_URL = process.env.WEBHOOK_URL || 'https://happy-determination-production.up.railway.app/api/farcaster/webhook';
@@ -34,7 +34,10 @@ async function setupWebhook() {
         url: WEBHOOK_URL,
         events: ['cast.created'],
         active: true,
-        description: 'SteakNStake tip detection webhook - monitors for $STEAK tip commands in Farcaster casts'
+        description: 'SteakNStake tip detection webhook - monitors for @steaknstake tip commands',
+        filters: {
+          mention: ['steaknstake']  // Only trigger when @steaknstake is mentioned
+        }
       })
     });
 

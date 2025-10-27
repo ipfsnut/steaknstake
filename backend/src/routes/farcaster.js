@@ -103,6 +103,9 @@ router.post('/webhook', async (req, res) => {
   try {
     const { type, data } = req.body;
     
+    // Log EVERYTHING for debugging
+    logger.info('🌐 WEBHOOK RECEIVED - FULL PAYLOAD:', JSON.stringify(req.body, null, 2));
+    
     logger.info('🌐 WEBHOOK RECEIVED:', { 
       type, 
       castHash: data?.hash, 
@@ -349,9 +352,12 @@ async function processTipFromFarcaster(tipData) {
 // Helper function to post successful tip confirmation
 async function postTipSuccess(parentHash, tipperUsername, recipientUsername, amount, tipId) {
   try {
-    const confirmationText = `🎉 Tip sent! @${tipperUsername} tipped ${amount} $STEAK to @${recipientUsername}!
+    const confirmationText = `✅ Your tip has been recorded and will be processed at midnight UTC.
 
-💝 @${recipientUsername}, visit steak.epicdylan.com to claim your tip!
+🎉 @${tipperUsername} tipped ${amount} $STEAK to @${recipientUsername}!
+
+💝 @${recipientUsername}, you can claim it from the SteakNStake miniapp at: https://steak.epicdylan.com
+
 🆔 Tip ID: ${tipId}`;
 
     await postToFarcaster(confirmationText, parentHash);
@@ -363,9 +369,11 @@ async function postTipSuccess(parentHash, tipperUsername, recipientUsername, amo
 // Helper function to post pending tip notification
 async function postTipPending(parentHash, tipperUsername, recipientUsername, amount) {
   try {
-    const confirmationText = `⏳ Tip pending! @${tipperUsername} tipped ${amount} $STEAK to @${recipientUsername}!
+    const confirmationText = `⏳ Your tip has been recorded and will be processed at midnight UTC.
 
-💝 @${recipientUsername}, connect your wallet at steak.epicdylan.com to claim your tip!`;
+🎉 @${tipperUsername} tipped ${amount} $STEAK to @${recipientUsername}!
+
+💝 @${recipientUsername}, connect your wallet at the SteakNStake miniapp to claim: https://steak.epicdylan.com`;
 
     await postToFarcaster(confirmationText, parentHash);
   } catch (error) {
@@ -592,6 +600,27 @@ router.get('/trending-recipients', async (req, res) => {
       error: 'Failed to get trending recipients'
     });
   }
+});
+
+// GET /api/farcaster/webhook-test - Simple test endpoint
+router.get('/webhook-test', (req, res) => {
+  logger.info('🧪 Webhook test endpoint hit');
+  res.json({
+    success: true,
+    message: 'Webhook endpoint is working',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// POST /api/farcaster/webhook-test - Test POST endpoint
+router.post('/webhook-test', (req, res) => {
+  logger.info('🧪 Webhook POST test:', req.body);
+  res.json({
+    success: true,
+    message: 'Webhook POST endpoint is working',
+    receivedBody: req.body,
+    timestamp: new Date().toISOString()
+  });
 });
 
 module.exports = router;

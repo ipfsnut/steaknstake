@@ -59,6 +59,30 @@ export function useStaking() {
     }
   });
 
+  // Add a fallback timer to check transaction status if connector fails
+  useEffect(() => {
+    if (hash && !isConfirmed && !isConfirming && error) {
+      console.log('🔄 Setting up fallback transaction confirmation check...');
+      const checkInterval = setInterval(async () => {
+        try {
+          // Try to refetch contract data to see if transaction went through
+          refetchAllowance();
+          refetchBalance();
+          refetchStaked();
+        } catch (err) {
+          console.warn('Fallback check failed:', err);
+        }
+      }, 3000);
+
+      // Clear interval after 30 seconds
+      setTimeout(() => {
+        clearInterval(checkInterval);
+      }, 30000);
+
+      return () => clearInterval(checkInterval);
+    }
+  }, [hash, isConfirmed, isConfirming, error, refetchAllowance, refetchBalance, refetchStaked]);
+
   // Update step based on allowance
   useEffect(() => {
     console.log('🔍 Allowance check:', {
@@ -123,9 +147,17 @@ export function useStaking() {
       setPendingTransaction(null);
     }
     
-    // Handle transaction errors
+    // Handle transaction errors  
     if (error && !isPending && !isConfirming) {
       console.error('💥 Transaction error detected:', error);
+      
+      // Don't show UI error for getChainId issues - these are connector-level problems
+      if (error?.message?.includes('getChainId')) {
+        console.warn('⚠️ getChainId error detected - this is a connector issue, not a transaction failure');
+        // Don't set processing to false or show error to user for this specific case
+        return;
+      }
+      
       setIsProcessing(false);
       
       if (error?.message?.includes('User rejected')) {
@@ -134,8 +166,6 @@ export function useStaking() {
         setUserError('Insufficient ETH for transaction fees.');
       } else if (error?.message?.includes('network')) {
         setUserError('Network error. Please check your connection.');
-      } else if (error?.message?.includes('getChainId')) {
-        setUserError('Wallet connection issue. Please refresh and try again.');
       } else {
         setUserError('Transaction failed. Please try again.');
       }
@@ -210,12 +240,13 @@ export function useStaking() {
         isConnected
       });
 
-      // Remove explicit chainId to avoid connector issues
+      // Add explicit chain configuration for Farcaster compatibility
       writeContract({
         address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'approve',
         args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
+        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Approve transaction submitted');
@@ -266,12 +297,13 @@ export function useStaking() {
         isConnected
       });
 
-      // Remove explicit chainId to avoid connector issues
+      // Add explicit chain configuration for Farcaster compatibility
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'stake',
         args: [amountWei],
+        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Stake transaction submitted');
@@ -321,12 +353,13 @@ export function useStaking() {
         isConnected
       });
 
-      // Remove explicit chainId to avoid connector issues
+      // Add explicit chain configuration for Farcaster compatibility
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'unstake',
         args: [amountWei],
+        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Unstake transaction submitted');

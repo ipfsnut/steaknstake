@@ -198,7 +198,8 @@ app.get('/api/debug/database', async (req, res) => {
           connected: true,
           userCount: result.rows[0].user_count,
           environment: process.env.NODE_ENV,
-          databaseUrlSet: !!process.env.DATABASE_URL
+          databaseUrlSet: !!process.env.DATABASE_URL,
+          databaseHost: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'not set'
         }
       });
     } else {
@@ -206,7 +207,10 @@ app.get('/api/debug/database', async (req, res) => {
         timestamp: new Date().toISOString(),
         database: {
           connected: false,
-          error: 'Connection test failed'
+          error: 'Connection test failed',
+          environment: process.env.NODE_ENV,
+          databaseUrlSet: !!process.env.DATABASE_URL,
+          databaseHost: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'not set'
         }
       });
     }
@@ -217,7 +221,10 @@ app.get('/api/debug/database', async (req, res) => {
       database: {
         connected: false,
         error: error.message,
-        code: error.code
+        code: error.code,
+        environment: process.env.NODE_ENV,
+        databaseUrlSet: !!process.env.DATABASE_URL,
+        databaseHost: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'not set'
       }
     });
   }

@@ -130,8 +130,10 @@ router.get('/test/:address', async (req, res) => {
 
 // GET /api/staking/position/:address - Get user's staking position
 router.get('/position/:address', async (req, res) => {
+  console.log('🎯 ROUTE CALLED: /api/staking/position/' + req.params.address);
   try {
     const { address } = req.params;
+    console.log('🎯 INSIDE TRY BLOCK, address:', address);
     
     // TEMPORARILY BYPASS getOrCreateUser - DIRECT QUERY
     const userClient = await db.getClient();

@@ -40,16 +40,38 @@ app.use(express.urlencoded({ extended: true }));
 // Import database service
 const db = require('./services/database');
 
-// Import routes
-console.log('🔍 INDEX: About to import staking routes...');
-const stakingRoutes = require('./routes/staking');
-console.log('🔍 INDEX: Staking routes imported successfully');
-const stakingMinimalRoutes = require('./routes/staking-minimal');
-const tippingRoutes = require('./routes/tipping');
-const userRoutes = require('./routes/users');
-const farcasterRoutes = require('./routes/farcaster');
-const debugRoutes = require('./routes/debug');
-const apiDebugRoutes = require('./routes/api-debug');
+// Import routes with error handling
+console.log('🔍 INDEX: About to import routes...');
+
+let stakingRoutes, stakingMinimalRoutes, tippingRoutes, userRoutes, farcasterRoutes, debugRoutes, apiDebugRoutes;
+
+try {
+  console.log('🔍 INDEX: Importing staking routes...');
+  stakingRoutes = require('./routes/staking');
+  console.log('✅ INDEX: Staking routes imported successfully');
+} catch (error) {
+  console.error('❌ INDEX: Failed to import staking routes:', error);
+}
+
+try {
+  console.log('🔍 INDEX: Importing staking-minimal routes...');
+  stakingMinimalRoutes = require('./routes/staking-minimal');
+  console.log('✅ INDEX: Staking-minimal routes imported successfully');
+} catch (error) {
+  console.error('❌ INDEX: Failed to import staking-minimal routes:', error);
+}
+
+try {
+  console.log('🔍 INDEX: Importing other routes...');
+  tippingRoutes = require('./routes/tipping');
+  userRoutes = require('./routes/users');
+  farcasterRoutes = require('./routes/farcaster');
+  debugRoutes = require('./routes/debug');
+  apiDebugRoutes = require('./routes/api-debug');
+  console.log('✅ INDEX: Other routes imported successfully');
+} catch (error) {
+  console.error('❌ INDEX: Failed to import other routes:', error);
+}
 
 // Consolidated request logging
 app.use((req, res, next) => {
@@ -61,16 +83,51 @@ app.use((req, res, next) => {
   next();
 });
 
-// API routes
-console.log('🔍 INDEX: About to register staking routes...');
-app.use('/api/staking', stakingRoutes);
-console.log('🔍 INDEX: Staking routes registered at /api/staking');
-app.use('/api/staking-minimal', stakingMinimalRoutes);
-app.use('/api/tipping', tippingRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/farcaster', farcasterRoutes);
-app.use('/api/debug', debugRoutes);
-app.use('/api/api-debug', apiDebugRoutes);
+// API routes with error handling
+console.log('🔍 INDEX: About to register routes...');
+
+if (stakingRoutes) {
+  try {
+    console.log('🔍 INDEX: Registering staking routes...');
+    app.use('/api/staking', stakingRoutes);
+    console.log('✅ INDEX: Staking routes registered at /api/staking');
+  } catch (error) {
+    console.error('❌ INDEX: Failed to register staking routes:', error);
+  }
+} else {
+  console.error('❌ INDEX: stakingRoutes is undefined, skipping registration');
+}
+
+if (stakingMinimalRoutes) {
+  try {
+    app.use('/api/staking-minimal', stakingMinimalRoutes);
+    console.log('✅ INDEX: Staking-minimal routes registered');
+  } catch (error) {
+    console.error('❌ INDEX: Failed to register staking-minimal routes:', error);
+  }
+}
+
+if (debugRoutes) {
+  try {
+    app.use('/api/debug', debugRoutes);
+    console.log('✅ INDEX: Debug routes registered');
+  } catch (error) {
+    console.error('❌ INDEX: Failed to register debug routes:', error);
+  }
+}
+
+if (apiDebugRoutes) {
+  try {
+    app.use('/api/api-debug', apiDebugRoutes);
+    console.log('✅ INDEX: API debug routes registered');
+  } catch (error) {
+    console.error('❌ INDEX: Failed to register API debug routes:', error);
+  }
+}
+
+if (tippingRoutes) app.use('/api/tipping', tippingRoutes);
+if (userRoutes) app.use('/api/users', userRoutes);
+if (farcasterRoutes) app.use('/api/farcaster', farcasterRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

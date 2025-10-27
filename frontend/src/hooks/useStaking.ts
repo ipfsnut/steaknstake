@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSimulateContract } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { CONTRACTS, ERC20_ABI, STEAKNSTAKE_ABI } from '@/lib/contracts';
 import { stakingApi } from '@/lib/api';
@@ -240,16 +240,13 @@ export function useStaking() {
         isConnected
       });
 
-      // Add explicit chain configuration for Farcaster compatibility
+      // Use 2025 best practice - no explicit chainId for Farcaster miniapps
       writeContract({
         address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
         abi: ERC20_ABI,
         functionName: 'approve',
         args: [CONTRACTS.STEAKNSTAKE as `0x${string}`, amountWei],
-        chainId: 8453, // Base mainnet
       });
-      
-      console.log('✅ Approve transaction submitted');
       
     } catch (err: any) {
       console.error('❌ Approve failed:', err);
@@ -297,13 +294,12 @@ export function useStaking() {
         isConnected
       });
 
-      // Add explicit chain configuration for Farcaster compatibility
+      // Use 2025 best practice - no explicit chainId for Farcaster miniapps
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'stake',
         args: [amountWei],
-        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Stake transaction submitted');
@@ -353,13 +349,12 @@ export function useStaking() {
         isConnected
       });
 
-      // Add explicit chain configuration for Farcaster compatibility
+      // Use 2025 best practice - no explicit chainId for Farcaster miniapps
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
         abi: STEAKNSTAKE_ABI,
         functionName: 'unstake',
         args: [amountWei],
-        chainId: 8453, // Base mainnet
       });
       
       console.log('✅ Unstake transaction submitted');

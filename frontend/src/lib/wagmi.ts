@@ -6,11 +6,11 @@ import { farcasterMiniApp as miniAppConnector } from '@farcaster/miniapp-wagmi-c
 export const config = createConfig({
   chains: [base],
   transports: {
-    [base.id]: http('https://mainnet.base.org'),
+    [base.id]: http(),
   },
   connectors: [
     miniAppConnector(),
     injected()
   ],
-  ssr: false, // Disable SSR for better Farcaster compatibility
+  ssr: true, // Enable SSR as recommended for Farcaster 2025
 })

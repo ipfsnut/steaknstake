@@ -189,6 +189,21 @@ router.get('/position/:address', async (req, res) => {
   } catch (error) {
     console.error('🚨 STAKING POSITION ERROR:', error);
     console.error('🚨 ERROR DETAILS:', error.stack);
+    console.error('🚨 ERROR CODE:', error.code);
+    
+    // Handle specific database connection errors
+    if (error.code === 'ECONNRESET' || error.code === 'ENOTFOUND' || error.code === 'ETIMEDOUT') {
+      console.error('🚨 DATABASE CONNECTION ISSUE - attempting retry...');
+      // For now, return a more descriptive error
+      return res.status(503).json({
+        success: false,
+        error: 'Database connection issue',
+        details: `Database ${error.code}: ${error.message}`,
+        code: error.code,
+        retryable: true
+      });
+    }
+    
     return res.status(500).json({
       success: false,
       error: 'Failed to get staking position',

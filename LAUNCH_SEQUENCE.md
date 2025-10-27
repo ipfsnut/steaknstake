@@ -58,7 +58,7 @@ npm run dev
 ### Backend Status:
 ```bash
 # Check Railway deployment
-curl https://steaknstake-backend-production.up.railway.app/api/health
+curl https://happy-determination-production.up.railway.app/api/health
 # Returns: {"status": "healthy"}
 ```
 

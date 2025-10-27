@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { parseEther, formatEther } from 'viem';
 import { CONTRACTS, ERC20_ABI, STEAKNSTAKE_ABI } from '@/lib/contracts';
+import { stakingApi } from '@/lib/api';
 
 export function useStaking() {
   const { address, isConnected } = useAccount();
@@ -12,6 +13,10 @@ export function useStaking() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [userError, setUserError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [pendingTransaction, setPendingTransaction] = useState<{
+    type: 'approve' | 'stake' | 'unstake';
+    amount: string;
+  } | null>(null);
 
   // Check allowance for SteakNStake contract
   const { data: allowance, refetch: refetchAllowance } = useReadContract({
@@ -95,7 +100,9 @@ export function useStaking() {
       
       if (currentStep === 'approve') {
         setSuccessMessage('STEAK tokens approved successfully!');
-      } else if (currentStep === 'stake') {
+      } else if (currentStep === 'stake' && pendingTransaction?.type === 'stake') {
+        // Call backend API to record the stake
+        handleStakeBackendUpdate(pendingTransaction.amount, hash);
         setSuccessMessage('STEAK tokens staked successfully!');
         setCurrentStep('completed');
         // Reset to correct step after a delay based on allowance
@@ -103,7 +110,17 @@ export function useStaking() {
           setSuccessMessage(null);
           // Don't reset currentStep here - let the allowance useEffect handle it
         }, 3000);
+      } else if (pendingTransaction?.type === 'unstake') {
+        // Call backend API to record the unstake
+        handleUnstakeBackendUpdate(pendingTransaction.amount, hash);
+        setSuccessMessage('STEAK tokens unstaked successfully!');
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 3000);
       }
+      
+      // Clear pending transaction
+      setPendingTransaction(null);
     }
     
     // Handle transaction errors
@@ -123,7 +140,55 @@ export function useStaking() {
         setUserError('Transaction failed. Please try again.');
       }
     }
-  }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked, address, error, isPending, isConfirming]);
+  }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked, address, error, isPending, isConfirming, pendingTransaction, hash]);
+
+  // Handle backend API call for stake transactions
+  const handleStakeBackendUpdate = async (amount: string, transactionHash: `0x${string}` | undefined) => {
+    if (!address || !transactionHash) return;
+    
+    try {
+      console.log('📡 Calling backend to record stake...', {
+        walletAddress: address,
+        amount: parseFloat(amount),
+        transactionHash
+      });
+      
+      const response = await stakingApi.stake({
+        walletAddress: address,
+        amount: parseFloat(amount),
+        transactionHash,
+        // TODO: Add block number if needed
+      });
+      
+      console.log('📡 Backend response:', response);
+    } catch (error) {
+      console.error('❌ Failed to update backend:', error);
+    }
+  };
+
+  // Handle backend API call for unstake transactions
+  const handleUnstakeBackendUpdate = async (amount: string, transactionHash: `0x${string}` | undefined) => {
+    if (!address || !transactionHash) return;
+    
+    try {
+      console.log('📡 Calling backend to record unstake...', {
+        walletAddress: address,
+        amount: parseFloat(amount),
+        transactionHash
+      });
+      
+      const response = await stakingApi.unstake({
+        walletAddress: address,
+        amount: parseFloat(amount),
+        transactionHash,
+        // TODO: Add block number if needed
+      });
+      
+      console.log('📡 Backend unstake response:', response);
+    } catch (error) {
+      console.error('❌ Failed to update backend for unstake:', error);
+    }
+  };
 
   const approveSteak = async (amount: string) => {
     console.log('🚀 Starting approve flow...', { amount, address, isConnected });
@@ -132,6 +197,7 @@ export function useStaking() {
       setIsProcessing(true);
       setUserError(null);
       setSuccessMessage(null);
+      setPendingTransaction({ type: 'approve', amount });
       
       const amountWei = parseEther(amount);
       
@@ -188,6 +254,7 @@ export function useStaking() {
       setIsProcessing(true);
       setUserError(null);
       setSuccessMessage(null);
+      setPendingTransaction({ type: 'stake', amount });
       
       const amountWei = parseEther(amount);
       
@@ -236,15 +303,24 @@ export function useStaking() {
   };
 
   const unstakeTokens = async (amount: string) => {
-    if (!address) return;
-
+    console.log('🚀 Starting unstake flow...', { amount, address, isConnected });
+    
     try {
       setIsProcessing(true);
       setUserError(null);
       setSuccessMessage(null);
+      setPendingTransaction({ type: 'unstake', amount });
       
       const amountWei = parseEther(amount);
       
+      console.log('🥩 Unstaking STEAK tokens:', {
+        amount,
+        amountWei: amountWei.toString(),
+        contractAddress: CONTRACTS.STEAKNSTAKE,
+        userAddress: address,
+        isConnected
+      });
+
       // Remove explicit chainId to avoid connector issues
       writeContract({
         address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
@@ -252,11 +328,20 @@ export function useStaking() {
         functionName: 'unstake',
         args: [amountWei],
       });
+      
+      console.log('✅ Unstake transaction submitted');
     } catch (err: any) {
-      console.error('Unstake failed:', err);
+      console.error('❌ Unstake failed:', err);
+      console.error('❌ Error details:', {
+        message: err?.message,
+        code: err?.code,
+        data: err?.data,
+        cause: err?.cause,
+        stack: err?.stack
+      });
       setIsProcessing(false);
       
-      if (err?.message?.includes('User rejected')) {
+      if (err?.message?.includes('User rejected') || err?.code === 'ACTION_REJECTED') {
         setUserError('Transaction was rejected. Please try again.');
       } else if (err?.message?.includes('insufficient')) {
         setUserError('Insufficient staked balance for unstaking.');
@@ -265,8 +350,10 @@ export function useStaking() {
       } else if (err?.message?.includes('getChainId')) {
         setUserError('Wallet chain detection error. Please try again.');
       } else {
-        setUserError('Failed to unstake tokens. Please try again.');
+        setUserError(`Failed to unstake tokens: ${err?.message || 'Unknown error'}`);
       }
+      
+      throw err;
     }
   };
 

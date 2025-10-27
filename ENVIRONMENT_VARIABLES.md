@@ -36,7 +36,7 @@ BASE_SEPOLIA_RPC_URL=https://sepolia.base.org
 ### 📁 Frontend (`/frontend/.env`)
 **Missing - Needs Creation:**
 ```env
-NEXT_PUBLIC_API_URL=https://steaknstake-backend-production.up.railway.app
+NEXT_PUBLIC_API_URL=https://happy-determination-production.up.railway.app
 NEXT_PUBLIC_CHAIN_ID=8453
 NEXT_PUBLIC_STEAK_TOKEN_ADDRESS=0x...
 NEXT_PUBLIC_STEAKNSTAKE_CONTRACT_ADDRESS=0x...
@@ -128,7 +128,7 @@ LOG_LEVEL=warn
 ### ☁️ Cloudflare Pages (Frontend Deployment)
 ```env
 # Production API
-NEXT_PUBLIC_API_URL=https://steaknstake-backend-production.up.railway.app
+NEXT_PUBLIC_API_URL=https://happy-determination-production.up.railway.app
 
 # Production contracts (after deployment)
 NEXT_PUBLIC_STEAK_TOKEN_ADDRESS=0x...

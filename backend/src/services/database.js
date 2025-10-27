@@ -10,6 +10,14 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
+// Log database configuration for debugging
+console.log('🔍 DATABASE: NODE_ENV =', process.env.NODE_ENV);
+console.log('🔍 DATABASE: DATABASE_URL =', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
+if (process.env.DATABASE_URL) {
+  const urlParts = process.env.DATABASE_URL.split('/');
+  console.log('🔍 DATABASE: Database name =', urlParts[urlParts.length - 1]);
+}
+
 // Create connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/steaknstake',

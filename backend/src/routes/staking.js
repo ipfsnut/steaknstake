@@ -1,7 +1,15 @@
+console.log('🔍 STAKING ROUTE: Starting to load staking.js...');
+
 const express = require('express');
 const router = express.Router();
+
+console.log('🔍 STAKING ROUTE: Express router created');
+
 const db = require('../services/database');
+console.log('🔍 STAKING ROUTE: Database service imported');
+
 const winston = require('winston');
+console.log('🔍 STAKING ROUTE: Winston imported');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -100,6 +108,8 @@ async function getOrCreateUser(walletAddress, farcasterFid = null, farcasterUser
     client.release();
   }
 }
+
+console.log('🔍 STAKING ROUTE: About to define routes...');
 
 // SIMPLE TEST ENDPOINT
 router.get('/test/:address', async (req, res) => {
@@ -452,4 +462,9 @@ router.get('/leaderboard', async (req, res) => {
   }
 });
 
+console.log('🔍 STAKING ROUTE: All routes defined, exporting router...');
+console.log('🔍 STAKING ROUTE: Routes registered:', router.stack?.length || 'unknown');
+
 module.exports = router;
+
+console.log('✅ STAKING ROUTE: Module exported successfully!');

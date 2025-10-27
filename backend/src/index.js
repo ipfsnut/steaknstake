@@ -50,7 +50,9 @@ app.use((req, res, next) => {
 const db = require('./services/database');
 
 // Import routes
+console.log('🔍 INDEX: About to import staking routes...');
 const stakingRoutes = require('./routes/staking');
+console.log('🔍 INDEX: Staking routes imported successfully');
 const stakingMinimalRoutes = require('./routes/staking-minimal');
 const tippingRoutes = require('./routes/tipping');
 const userRoutes = require('./routes/users');
@@ -59,7 +61,9 @@ const debugRoutes = require('./routes/debug');
 const apiDebugRoutes = require('./routes/api-debug');
 
 // API routes
+console.log('🔍 INDEX: About to register staking routes...');
 app.use('/api/staking', stakingRoutes);
+console.log('🔍 INDEX: Staking routes registered at /api/staking');
 app.use('/api/staking-minimal', stakingMinimalRoutes);
 app.use('/api/tipping', tippingRoutes);
 app.use('/api/users', userRoutes);

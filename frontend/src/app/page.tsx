@@ -64,6 +64,8 @@ export default function HomePage() {
   const [userClaimableTips, setUserClaimableTips] = useState(0);
   const [userAllowanceBalance, setUserAllowanceBalance] = useState(0); // Track tipping allowances
   const [backendUserPosition, setBackendUserPosition] = useState<UserPosition | null>(null);
+  const [unclaimedTips, setUnclaimedTips] = useState<any[]>([]);
+  const [unclaimedAmount, setUnclaimedAmount] = useState<number>(0);
 
   // Direct wagmi wallet connection
   const { address, isConnected } = useAccount();
@@ -182,6 +184,29 @@ export default function HomePage() {
   useEffect(() => {
     console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp, 'user:', user);
   }, [isReady, isMiniApp, user]);
+
+  // Fetch unclaimed tips for the user
+  const fetchUnclaimedTips = async () => {
+    if (!address || !user?.fid) return;
+    
+    try {
+      console.log('🔍 Fetching unclaimed tips...', { address, fid: user.fid });
+      
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/farcaster/user/${user.fid}`);
+      if (response.ok) {
+        const data = await response.json();
+        const unclaimedAmount = data.data?.stats?.unclaimedAmount || 0;
+        const recentTips = data.data?.recentTips?.filter((tip: any) => !tip.isClaimed) || [];
+        
+        setUnclaimedAmount(unclaimedAmount);
+        setUnclaimedTips(recentTips);
+        
+        console.log('📨 Unclaimed tips:', { unclaimedAmount, count: recentTips.length });
+      }
+    } catch (error) {
+      console.error('❌ Error fetching unclaimed tips:', error);
+    }
+  };
 
   // Auto-sync user data when both wallet and Farcaster are connected
   useEffect(() => {
@@ -304,6 +329,9 @@ export default function HomePage() {
     };
     
     syncAndUseBackendData();
+    
+    // Fetch unclaimed tips if user has Farcaster FID
+    fetchUnclaimedTips();
     
     // Debug logging
     console.log('📊 Contract data update:', {
@@ -1203,6 +1231,16 @@ export default function HomePage() {
                 <div className="text-2xl font-bold text-pink-600 mb-1">{formatNumber(stakingStats.tipsAvailable)}</div>
                 <div className="text-sm text-pink-700 font-medium">Tips Available</div>
                 <div className="text-xs text-pink-500 mt-2">→ Learn Tipping</div>
+              </button>
+
+              <button 
+                onClick={() => setActiveSection('claim')}
+                className="bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl p-6 text-center border border-green-200 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer"
+              >
+                <div className="text-3xl mb-3">🎁</div>
+                <div className="text-2xl font-bold text-green-600 mb-1">{formatNumber(unclaimedAmount)}</div>
+                <div className="text-sm text-green-700 font-medium">Tips Received</div>
+                <div className="text-xs text-green-500 mt-2">→ Claim Tips</div>
               </button>
             </div>
 

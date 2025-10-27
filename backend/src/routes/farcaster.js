@@ -98,6 +98,15 @@ router.get('/user/:fid', async (req, res) => {
   }
 });
 
+// GET /api/farcaster/webhook - Webhook validation endpoint
+router.get('/webhook', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Webhook endpoint is active',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // POST /api/farcaster/webhook - Handle Farcaster webhooks for tip detection
 router.post('/webhook', async (req, res) => {
   try {

@@ -89,10 +89,13 @@ console.log('🔍 INDEX: About to register routes...');
 if (stakingRoutes) {
   try {
     console.log('🔍 INDEX: Registering staking routes...');
+    console.log('🔍 INDEX: stakingRoutes type:', typeof stakingRoutes);
+    console.log('🔍 INDEX: stakingRoutes keys:', Object.keys(stakingRoutes));
     app.use('/api/staking', stakingRoutes);
     console.log('✅ INDEX: Staking routes registered at /api/staking');
   } catch (error) {
     console.error('❌ INDEX: Failed to register staking routes:', error);
+    console.error('❌ INDEX: Error details:', error.stack);
   }
 } else {
   console.error('❌ INDEX: stakingRoutes is undefined, skipping registration');

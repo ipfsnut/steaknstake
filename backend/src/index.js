@@ -153,6 +153,22 @@ app.get('/api/debug/deployment', (req, res) => {
   });
 });
 
+// Debug endpoint to check environment variables
+app.get('/api/debug/env', (req, res) => {
+  res.json({
+    timestamp: new Date().toISOString(),
+    environment: {
+      NODE_ENV: process.env.NODE_ENV,
+      PORT: process.env.PORT,
+      DATABASE_URL_SET: !!process.env.DATABASE_URL,
+      DATABASE_URL_LENGTH: process.env.DATABASE_URL ? process.env.DATABASE_URL.length : 0,
+      DATABASE_URL_HOST: process.env.DATABASE_URL ? process.env.DATABASE_URL.split('@')[1]?.split('/')[0] : 'not set',
+      FRONTEND_URL: process.env.FRONTEND_URL,
+      NEYNAR_API_KEY_SET: !!process.env.NEYNAR_API_KEY
+    }
+  });
+});
+
 // Debug endpoint to check routes
 app.get('/api/debug/routes', (req, res) => {
   console.log('🔍 ROUTES DEBUG ENDPOINT CALLED');

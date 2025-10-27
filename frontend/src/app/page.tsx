@@ -90,36 +90,35 @@ export default function HomePage() {
 
   // Contract doesn't have totalSupply - we'll calculate stakers differently
 
-  // Read user's lifetime tips received (total earned over time)
-  const { data: totalTipsReceived } = useReadContract({
+  // Read user's claimed earnings (TipN pattern)
+  const { data: claimedEarnings } = useReadContract({
     address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
     abi: STEAKNSTAKE_ABI,
-    functionName: 'totalTipsReceived',
+    functionName: 'getClaimedEarnings',
     args: address ? [address] : undefined,
     query: {
       enabled: !!address
     }
   });
 
-  // Read user's claimable amount (allocated - claimed)
-  const { data: claimableAmount } = useReadContract({
+  // Read user's unclaimed earnings (TipN pattern)
+  const { data: unclaimedEarnings } = useReadContract({
     address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
     abi: STEAKNSTAKE_ABI,
-    functionName: 'getClaimableAmount',
-    args: address ? [address] : undefined,
+    functionName: 'getUnclaimedEarnings',
+    args: address ? [address, BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')] : undefined, // Max uint256 for no limit
     query: {
       enabled: !!address
     }
   });
 
-  // Read user's allocated tips (might be the allowance balance)
-  const { data: allocatedTips } = useReadContract({
+  // Read total rewards distributed globally (TipN pattern)
+  const { data: totalRewardsDistributed } = useReadContract({
     address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
     abi: STEAKNSTAKE_ABI,
-    functionName: 'allocatedTips',
-    args: address ? [address] : undefined,
+    functionName: 'totalRewardsDistributed',
     query: {
-      enabled: !!address
+      enabled: true
     }
   });
 
@@ -239,8 +238,8 @@ export default function HomePage() {
   // Update all stats when contract data changes
   useEffect(() => {
     const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
-    const userLifetimeTips = totalTipsReceived ? parseFloat(formatEther(totalTipsReceived)) : 0;
-    const claimableTipsAmount = claimableAmount ? parseFloat(formatEther(claimableAmount)) : 0;
+    const userClaimedEarnings = claimedEarnings ? parseFloat(formatEther(claimedEarnings)) : 0;
+    const claimableTipsAmount = unclaimedEarnings ? parseFloat(formatEther(unclaimedEarnings)) : 0;
     
     // Update state for use in JSX with real backend data if available
     if (backendUserPosition) {
@@ -262,9 +261,9 @@ export default function HomePage() {
       address,
       contractTotalStaked: contractTotalStaked?.toString(),
       realTotalStaked,
-      totalTipsReceived: totalTipsReceived?.toString(),
-      userLifetimeTips,
-      claimableAmount: claimableAmount?.toString(),
+      claimedEarnings: claimedEarnings?.toString(),
+      userClaimedEarnings,
+      unclaimedEarnings: unclaimedEarnings?.toString(),
       claimableTipsAmount,
       contractStakedAmount
     });
@@ -295,7 +294,7 @@ export default function HomePage() {
       });
     }
     setTopStakers(leaderboard);
-  }, [contractTotalStaked, totalTipsReceived, claimableAmount, contractStakedAmount, address, user, backendUserPosition]);
+  }, [contractTotalStaked, claimedEarnings, unclaimedEarnings, contractStakedAmount, address, user, backendUserPosition]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

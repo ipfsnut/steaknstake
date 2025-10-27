@@ -132,13 +132,58 @@ router.get('/test/:address', async (req, res) => {
 router.get('/position/:address', async (req, res) => {
   console.log('🎯 ROUTE CALLED: /api/staking/position/' + req.params.address);
   
-  // QUICK TEST - Just return success to verify route works
-  return res.json({
-    success: true,
-    message: 'Route is working!',
-    address: req.params.address,
-    timestamp: new Date().toISOString()
-  });
+  try {
+    const { address } = req.params;
+    
+    // Get user and staking data from database
+    const client = await db.getClient();
+    
+    const result = await client.query(`
+      SELECT 
+        u.wallet_address,
+        u.farcaster_fid,
+        u.farcaster_username,
+        sp.staked_amount,
+        sp.total_rewards_earned,
+        sp.available_tip_balance,
+        sp.staked_at
+      FROM users u
+      LEFT JOIN staking_positions sp ON u.id = sp.user_id
+      WHERE u.wallet_address = $1
+    `, [address.toLowerCase()]);
+    
+    client.release();
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+    
+    const userData = result.rows[0];
+    
+    return res.json({
+      success: true,
+      data: {
+        walletAddress: userData.wallet_address,
+        stakedAmount: parseFloat(userData.staked_amount || 0),
+        totalRewardsEarned: parseFloat(userData.total_rewards_earned || 0),
+        availableTipBalance: parseFloat(userData.available_tip_balance || 0),
+        stakedAt: userData.staked_at,
+        farcasterFid: userData.farcaster_fid,
+        farcasterUsername: userData.farcaster_username
+      }
+    });
+    
+  } catch (error) {
+    console.error('🚨 STAKING POSITION ERROR:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get staking position',
+      details: error.message
+    });
+  }
   
   // TODO: Restore full implementation
   /*

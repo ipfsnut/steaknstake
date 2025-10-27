@@ -135,8 +135,18 @@ router.get('/position/:address', async (req, res) => {
   try {
     const { address } = req.params;
     
+    // DIRECT DATABASE CONNECTION TEST
+    const { Client } = require('pg');
+    const client = new Client({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+    
+    await client.connect();
+    console.log('🎯 DIRECT DB CONNECTION SUCCESS');
+    
     // Get user and staking data from database
-    const client = await db.getClient();
+    // const client = await db.getClient();
     
     const result = await client.query(`
       SELECT 
@@ -152,7 +162,7 @@ router.get('/position/:address', async (req, res) => {
       WHERE u.wallet_address = $1
     `, [address.toLowerCase()]);
     
-    client.release();
+    await client.end();
     
     if (result.rows.length === 0) {
       // New user - return default values

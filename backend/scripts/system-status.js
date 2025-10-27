@@ -80,7 +80,7 @@ async function checkFarcaster() {
 
 async function checkContracts() {
   const STEAK_TOKEN = process.env.STEAK_TOKEN_ADDRESS || '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
-  const STEAKNSTAKE = process.env.STEAKNSTAKE_CONTRACT_ADDRESS || '0x9900fbFfc6bbb6c082aC0488040fB88dd00c1622';
+  const STEAKNSTAKE = process.env.STEAKNSTAKE_CONTRACT_ADDRESS || '0xE1F7DECfb1b0A31B660D29246DB078fBa95C542A';
   
   if (!STEAK_TOKEN || !STEAKNSTAKE) {
     return { status: '❌', message: 'Contract addresses not configured' };

@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.22;
 
 import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title SteakNStake
- * @dev Unified contract combining staking and tip reward allocation
- * Users stake STEAK tokens and can claim/stake tips received via Farcaster
+ * @dev TipN-style reward distribution contract
+ * Users stake STEAK tokens and receive STEAK rewards via split() distribution
  */
 contract SteakNStake is 
     Initializable, 
     OwnableUpgradeable, 
     ReentrancyGuardUpgradeable, 
-    PausableUpgradeable 
+    PausableUpgradeable,
+    UUPSUpgradeable 
 {
     using SafeERC20 for IERC20;
 
@@ -25,9 +27,9 @@ contract SteakNStake is
     // STATE VARIABLES
     // ================================
     
-    // Token and core addresses
-    IERC20 public steakToken;
-    address public backendWallet;
+    // Tokens (TipN pattern: stakeToken and rewardToken)
+    IERC20 public stakeToken;   // STEAK for staking
+    IERC20 public rewardToken;  // STEAK for rewards (same token)
     
     // Staking state
     mapping(address => uint256) public stakedAmounts;
@@ -35,19 +37,14 @@ contract SteakNStake is
     uint256 public totalStaked;
     uint256 public minimumStake;
     
-    // Tip allocation state
-    mapping(address => uint256) public allocatedTips;
-    mapping(address => uint256) public claimedTips;
-    uint256 public totalAllocated;
-    uint256 public totalClaimed;
+    // Reward distribution state (TipN pattern)
+    mapping(address => uint256) public claimedEarnings;
+    uint256 public totalRewardsDistributed;
     
-    // Authorization for tip allocation
-    mapping(address => bool) public authorized;
+    // Authorization for reward distribution (distributors like TipN)
+    mapping(address => bool) public distributors;
     
-    // Removed auto-staking functionality for security and simplicity
-    
-    // Social tracking
-    mapping(address => uint256) public totalTipsReceived;
+    // Simple tracking (keep for compatibility)
     mapping(address => uint256) public lifetimeStaked;
 
     // ================================
@@ -58,36 +55,21 @@ contract SteakNStake is
     event Staked(address indexed user, uint256 amount, uint256 timestamp);
     event Unstaked(address indexed user, uint256 amount, uint256 timestamp);
     
-    // Tip allocation events
-    event TipsAllocated(address indexed user, uint256 amount);
-    event TipsClaimed(address indexed user, uint256 amount, ClaimAction action);
+    // Reward distribution events (TipN pattern)
+    event RewardsSplit(uint256 amount, address indexed distributor);
+    event RewardsClaimed(address indexed user, uint256 amount);
     
     // Admin events
-    event BackendWalletUpdated(address indexed oldWallet, address indexed newWallet);
+    event DistributorAdded(address indexed distributor);
+    event DistributorRemoved(address indexed distributor);
     event MinimumStakeUpdated(uint256 oldMinimum, uint256 newMinimum);
-    event AuthorizedUpdated(address indexed account, bool authorized);
-    event ContractFunded(address indexed funder, uint256 amount);
-
-    // ================================
-    // ENUMS
-    // ================================
-    
-    enum ClaimAction {
-        TO_WALLET,      // Transfer tips to user wallet
-        SPLIT_HALF      // Half to wallet, half to wallet (no auto-staking)
-    }
 
     // ================================
     // MODIFIERS
     // ================================
     
-    modifier onlyAuthorized() {
-        require(authorized[msg.sender] || msg.sender == backendWallet || msg.sender == owner(), "Not authorized");
-        _;
-    }
-    
-    modifier validAddress(address addr) {
-        require(addr != address(0), "Invalid address");
+    modifier onlyDistributor() {
+        require(distributors[msg.sender] || msg.sender == owner(), "Not authorized distributor");
         _;
     }
 
@@ -101,23 +83,20 @@ contract SteakNStake is
     }
 
     function initialize(
-        address _steakToken,
-        address _backendWallet,
+        address _stakeToken,
+        address _rewardToken,
         uint256 _minimumStake
     ) public initializer {
         __Ownable_init(msg.sender);
         __ReentrancyGuard_init();
         __Pausable_init();
         
-        require(_steakToken != address(0), "Invalid token address");
-        require(_backendWallet != address(0), "Invalid backend wallet");
+        require(_stakeToken != address(0), "Invalid stake token");
+        require(_rewardToken != address(0), "Invalid reward token");
         
-        steakToken = IERC20(_steakToken);
-        backendWallet = _backendWallet;
+        stakeToken = IERC20(_stakeToken);
+        rewardToken = IERC20(_rewardToken);
         minimumStake = _minimumStake;
-        
-        // Backend wallet is authorized by default
-        authorized[_backendWallet] = true;
     }
 
     // ================================
@@ -140,7 +119,7 @@ contract SteakNStake is
         require(amount > 0, "Cannot stake zero tokens");
         
         // Transfer tokens from user to contract
-        steakToken.safeTransferFrom(user, address(this), amount);
+        stakeToken.safeTransferFrom(user, address(this), amount);
         
         // Update user's staked amount
         stakedAmounts[user] += amount;
@@ -174,194 +153,131 @@ contract SteakNStake is
         }
         
         // Transfer tokens back to user
-        steakToken.safeTransfer(msg.sender, amount);
+        stakeToken.safeTransfer(msg.sender, amount);
         
         emit Unstaked(msg.sender, amount, block.timestamp);
     }
 
     // ================================
-    // TIP ALLOCATION FUNCTIONS (Backend)
+    // REWARD DISTRIBUTION FUNCTIONS (TipN Pattern)
     // ================================
     
     /**
-     * @dev Allocate tips to multiple users (batch operation)
+     * @dev Split rewards among all current stakers (like TipN's split function)
      */
-    function allocateTipsBatch(
-        address[] calldata users, 
-        uint256[] calldata amounts
-    ) external onlyAuthorized whenNotPaused {
-        require(users.length == amounts.length, "Array length mismatch");
-        require(users.length > 0, "Empty arrays");
-        require(users.length <= 50, "Batch too large"); // Reduced for gas safety
+    function split(uint256 rewardQuantity) external onlyDistributor nonReentrant whenNotPaused {
+        require(rewardQuantity > 0, "Invalid reward quantity");
+        require(totalStaked > 0, "No stakers to distribute to");
         
-        uint256 totalBatchAmount = 0;
+        // Transfer reward tokens from distributor to contract
+        rewardToken.safeTransferFrom(msg.sender, address(this), rewardQuantity);
         
-        // First pass: validate all inputs and calculate total
-        for (uint256 i = 0; i < users.length; i++) {
-            require(users[i] != address(0), "Invalid user");
-            require(amounts[i] > 0, "Invalid amount");
-            totalBatchAmount += amounts[i];
-        }
+        // Track total rewards distributed
+        totalRewardsDistributed += rewardQuantity;
         
-        // Ensure contract has enough funds for this batch
-        uint256 contractBalance = steakToken.balanceOf(address(this));
-        uint256 availableForTips = contractBalance > totalStaked ? contractBalance - totalStaked : 0;
-        require(availableForTips >= totalBatchAmount, "Insufficient funds for batch allocation");
-        
-        // Second pass: execute allocations
-        for (uint256 i = 0; i < users.length; i++) {
-            address user = users[i];
-            uint256 amount = amounts[i];
-            
-            allocatedTips[user] += amount;
-            totalAllocated += amount;
-            totalTipsReceived[user] += amount;
-            
-            emit TipsAllocated(user, amount);
-        }
+        emit RewardsSplit(rewardQuantity, msg.sender);
     }
-
-    // ================================
-    // TIP CLAIMING FUNCTIONS (Users)
-    // ================================
     
     /**
-     * @dev Claim allocated tips with specified action
+     * @dev Claim accumulated rewards (like TipN's claim function)
      */
-    function claimTips(ClaimAction action) external nonReentrant whenNotPaused {
-        uint256 claimable = getClaimableAmount(msg.sender);
-        require(claimable > 0, "No tips to claim");
-        
-        // Check contract balance BEFORE updating state
-        uint256 contractBalance = steakToken.balanceOf(address(this));
-        uint256 availableForClaims = contractBalance > totalStaked ? contractBalance - totalStaked : 0;
-        require(availableForClaims >= claimable, "Insufficient contract balance for claims");
+    function claim(address to, uint256 limit) external nonReentrant whenNotPaused {
+        uint256 claimableAmount = getUnclaimedEarnings(msg.sender, limit);
+        require(claimableAmount > 0, "No rewards to claim");
         
         // Update claimed amount
-        claimedTips[msg.sender] += claimable;
-        totalClaimed += claimable;
+        claimedEarnings[msg.sender] += claimableAmount;
         
-        // Execute the chosen action
-        if (action == ClaimAction.TO_WALLET) {
-            steakToken.safeTransfer(msg.sender, claimable);
-        } else if (action == ClaimAction.SPLIT_HALF) {
-            uint256 half = claimable / 2;
-            uint256 remainder = claimable - half;
-            
-            // Send both halves to wallet (no auto-staking)
-            steakToken.safeTransfer(msg.sender, half);
-            steakToken.safeTransfer(msg.sender, remainder);
-        }
+        // Transfer rewards to specified address
+        rewardToken.safeTransfer(to, claimableAmount);
         
-        emit TipsClaimed(msg.sender, claimable, action);
+        emit RewardsClaimed(msg.sender, claimableAmount);
     }
     
     /**
-     * @dev Convenience function to claim tips to wallet
+     * @dev Convenience function to claim to sender's wallet
      */
     function claimToWallet() external {
-        this.claimTips(ClaimAction.TO_WALLET);
+        this.claim(msg.sender, type(uint256).max);
     }
-    
-
 
     // ================================
-    // VIEW FUNCTIONS
+    // VIEW FUNCTIONS (TipN Pattern)
     // ================================
     
     /**
-     * @dev Get user's current staked amount
+     * @dev Get unclaimed earnings for a user up to a limit (like TipN)
+     */
+    function getUnclaimedEarnings(address user, uint256 limit) public view returns (uint256) {
+        if (stakedAmounts[user] == 0 || totalStaked == 0 || totalRewardsDistributed == 0) {
+            return 0;
+        }
+        
+        // Simple proportional calculation:
+        // user_earnings = (user_stake / total_stake) * total_rewards_distributed
+        uint256 totalEarned = (stakedAmounts[user] * totalRewardsDistributed) / totalStaked;
+        
+        // Subtract already claimed amount
+        uint256 alreadyClaimed = claimedEarnings[user];
+        if (totalEarned <= alreadyClaimed) return 0;
+        
+        uint256 unclaimed = totalEarned - alreadyClaimed;
+        return unclaimed > limit ? limit : unclaimed;
+    }
+    
+    /**
+     * @dev Get user's staked amount
      */
     function getStakedAmount(address user) external view returns (uint256) {
         return stakedAmounts[user];
     }
     
     /**
-     * @dev Get user's stake timestamp
+     * @dev Get user's claimed earnings
      */
-    function getStakeTimestamp(address user) external view returns (uint256) {
-        return stakeTimestamps[user];
+    function getClaimedEarnings(address user) external view returns (uint256) {
+        return claimedEarnings[user];
     }
+
+    // Note: TipN pattern uses split() for distribution, not allocateTipsBatch()
     
-    /**
-     * @dev Get claimable tip amount for user
-     */
-    function getClaimableAmount(address user) public view returns (uint256) {
-        return allocatedTips[user] - claimedTips[user];
-    }
     
-    /**
-     * @dev Get comprehensive user stats
-     */
-    function getUserStats(address user) external view returns (
-        uint256 staked,
-        uint256 claimableTips,
-        uint256 totalTipsReceived_,
-        uint256 lifetimeStaked_,
-        uint256 stakeTimestamp
-    ) {
-        return (
-            stakedAmounts[user],
-            getClaimableAmount(user),
-            totalTipsReceived[user],
-            lifetimeStaked[user],
-            stakeTimestamps[user]
-        );
-    }
-    
-    /**
-     * @dev Get contract statistics
-     */
-    function getContractStats() external view returns (
-        uint256 totalStaked_,
-        uint256 totalAllocated_,
-        uint256 totalClaimed_,
-        uint256 contractBalance
-    ) {
-        return (
-            totalStaked,
-            totalAllocated,
-            totalClaimed,
-            steakToken.balanceOf(address(this))
-        );
-    }
-    
-    /**
-     * @dev Get contract's token balance
-     */
-    function getContractBalance() external view returns (uint256) {
-        return steakToken.balanceOf(address(this));
-    }
+
 
     // ================================
     // ADMIN FUNCTIONS
     // ================================
     
     /**
-     * @dev Update backend wallet address
+     * @dev Add distributor (can call split function)
      */
-    function setBackendWallet(address newBackendWallet) external onlyOwner {
-        require(newBackendWallet != address(0), "Invalid address");
+    function addDistributor(address distributor) external onlyOwner {
+        require(distributor != address(0), "Invalid distributor");
+        require(!distributors[distributor], "Already a distributor");
         
-        // Remove old backend authorization
-        authorized[backendWallet] = false;
+        distributors[distributor] = true;
         
-        address oldWallet = backendWallet;
-        backendWallet = newBackendWallet;
-        
-        // Authorize new backend
-        authorized[newBackendWallet] = true;
-        
-        emit BackendWalletUpdated(oldWallet, newBackendWallet);
+        emit DistributorAdded(distributor);
     }
     
     /**
-     * @dev Set authorization for tip allocation
+     * @dev Remove distributor
      */
-    function setAuthorized(address account, bool _authorized) external onlyOwner {
-        authorized[account] = _authorized;
-        emit AuthorizedUpdated(account, _authorized);
+    function removeDistributor(address distributor) external onlyOwner {
+        require(distributors[distributor], "Not a distributor");
+        
+        distributors[distributor] = false;
+        
+        emit DistributorRemoved(distributor);
     }
+    
+    /**
+     * @dev Check if address is distributor
+     */
+    function isDistributor(address account) external view returns (bool) {
+        return distributors[account];
+    }
+    
     
     /**
      * @dev Update minimum stake amount
@@ -373,20 +289,19 @@ contract SteakNStake is
     }
     
     /**
-     * @dev Fund contract with tokens for tip distribution
+     * @dev Fund contract with reward tokens for distribution
      */
     function fundContract(uint256 amount) external {
         require(amount > 0, "Invalid amount");
-        steakToken.safeTransferFrom(msg.sender, address(this), amount);
-        emit ContractFunded(msg.sender, amount);
+        rewardToken.safeTransferFrom(msg.sender, address(this), amount);
     }
     
     /**
-     * @dev Emergency function to recover NON-STEAK tokens only (only owner)
+     * @dev Emergency function to recover other tokens only (only owner)
      */
     function emergencyRecoverTokens(address token, uint256 amount) external onlyOwner {
         require(token != address(0), "Invalid token address");
-        require(token != address(steakToken), "Cannot recover staked STEAK tokens");
+        require(token != address(stakeToken), "Cannot recover STEAK tokens");
         IERC20(token).safeTransfer(owner(), amount);
     }
     
@@ -403,6 +318,11 @@ contract SteakNStake is
     function unpause() external onlyOwner {
         _unpause();
     }
+    
+    /**
+     * @dev Authorize upgrades (UUPS pattern)
+     */
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     // ================================
     // VERSION
@@ -412,6 +332,6 @@ contract SteakNStake is
      * @dev Get contract version
      */
     function version() external pure returns (string memory) {
-        return "1.0.0-unified";
+        return "2.0.0-tipn-style";
     }
 }

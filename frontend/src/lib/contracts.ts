@@ -2,7 +2,7 @@
 export const CONTRACTS = {
   // Real deployed contract addresses on Base mainnet
   STEAK_TOKEN: process.env.NEXT_PUBLIC_STEAK_TOKEN_ADDRESS || '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07', // Your STEAK token
-  STEAKNSTAKE: process.env.NEXT_PUBLIC_STEAKNSTAKE_CONTRACT_ADDRESS || '0x9900fbFfc6bbb6c082aC0488040fB88dd00c1622', // Your deployed SteakNStake contract
+  STEAKNSTAKE: process.env.NEXT_PUBLIC_STEAKNSTAKE_CONTRACT_ADDRESS || '0xE1F7DECfb1b0A31B660D29246DB078fBa95C542A', // New TipN-style SteakNStake contract
 } as const;
 
 // ERC20 ABI for approvals
@@ -36,8 +36,9 @@ export const ERC20_ABI = [
   }
 ] as const;
 
-// SteakNStake contract ABI (main functions)
+// TipN-style SteakNStake contract ABI
 export const STEAKNSTAKE_ABI = [
+  // Staking functions
   {
     "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}],
     "name": "stake",
@@ -52,33 +53,13 @@ export const STEAKNSTAKE_ABI = [
     "stateMutability": "nonpayable",
     "type": "function"
   },
-  {
-    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "stakedAmounts",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "totalStaked",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}],
-    "name": "fundContract",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
+  // TipN-style reward functions
   {
     "inputs": [
-      {"internalType": "address[]", "name": "users", "type": "address[]"},
-      {"internalType": "uint256[]", "name": "amounts", "type": "uint256[]"}
+      {"internalType": "address", "name": "to", "type": "address"},
+      {"internalType": "uint256", "name": "limit", "type": "uint256"}
     ],
-    "name": "allocateTipsBatch",
+    "name": "claim",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -91,44 +72,77 @@ export const STEAKNSTAKE_ABI = [
     "type": "function"
   },
   {
+    "inputs": [{"internalType": "uint256", "name": "rewardQuantity", "type": "uint256"}],
+    "name": "split",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  // View functions
+  {
     "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "allocatedTips",
+    "name": "stakedAmounts",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
   {
     "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "getClaimableAmount",
+    "name": "getStakedAmount",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "claimedTips",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "totalTipsReceived",
-    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
-    "name": "getUserStats",
-    "outputs": [
-      {"internalType": "uint256", "name": "staked", "type": "uint256"},
-      {"internalType": "uint256", "name": "claimableTips", "type": "uint256"},
-      {"internalType": "uint256", "name": "totalTipsReceived_", "type": "uint256"},
-      {"internalType": "uint256", "name": "lifetimeStaked_", "type": "uint256"},
-      {"internalType": "uint256", "name": "stakeTimestamp", "type": "uint256"}
+    "inputs": [
+      {"internalType": "address", "name": "user", "type": "address"},
+      {"internalType": "uint256", "name": "limit", "type": "uint256"}
     ],
+    "name": "getUnclaimedEarnings",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+    "name": "getClaimedEarnings",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalStaked",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalRewardsDistributed",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+    "name": "lifetimeStaked",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [{"internalType": "uint256", "name": "amount", "type": "uint256"}],
+    "name": "fundContract",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "version",
+    "outputs": [{"internalType": "string", "name": "", "type": "string"}],
+    "stateMutability": "pure",
     "type": "function"
   }
 ] as const;

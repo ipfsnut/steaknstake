@@ -4,7 +4,7 @@ const { Client } = require('pg');
 
 // Contract addresses from CLAUDE.md
 const STEAK_TOKEN_ADDRESS = '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
-const STEAKNSTAKE_CONTRACT = '0x9900fbFfc6bbb6c082aC0488040fB88dd00c1622';
+const STEAKNSTAKE_CONTRACT = '0xE1F7DECfb1b0A31B660D29246DB078fBa95C542A';
 const USER_ADDRESS = '0x18a85ad341b2d6a2bd67fbb104b4827b922a2a3c'; // Your wallet
 
 // SteakNStake contract ABI (actual functions from contract)
@@ -99,19 +99,16 @@ async function populateRealUserData() {
     
     console.log('✅ Got stake timestamp:', stakingTimestamp.toString());
     
-    // Get contract balance to calculate actual tip allowance
-    const contractBalance = await client.readContract({
-      address: STEAKNSTAKE_CONTRACT,
-      abi: STEAKNSTAKE_ABI,
-      functionName: 'getContractBalance',
-      args: []
+    // Calculate actual tip allowance from contract data
+    // Based on whitepaper: "Daily allowances based on: stake size × time locked × multiplier"
+    // Available tip allowance = allocated - claimed
+    tipAllowance = allocatedTips - claimedTips;
+    
+    console.log('🧮 Tip allowance calculation:', {
+      allocated: allocatedTips.toString(),
+      claimed: claimedTips.toString(),
+      available: tipAllowance.toString()
     });
-    
-    console.log('💰 Contract balance:', contractBalance.toString());
-    
-    // Your tip allowance is your proportion of the contract balance based on your stake
-    // This is the actual available balance for tipping
-    tipAllowance = contractBalance;
 
     // Connect to Railway database
     console.log('💾 Connecting to Railway database...');

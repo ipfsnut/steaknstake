@@ -8,6 +8,14 @@ console.log('🔍 STAKING ROUTE: Express router created');
 const db = require('../services/database');
 console.log('🔍 STAKING ROUTE: Database service imported');
 
+const { ethers } = require('ethers');
+console.log('🔍 STAKING ROUTE: Contract service imports added');
+
+// Contract addresses
+const CONTRACTS = {
+  STEAKNSTAKE: process.env.STEAKNSTAKE_CONTRACT_ADDRESS || '0xdA9BD5c259Ae90e99158f45f00238d1BaDb3694D'
+};
+
 const winston = require('winston');
 console.log('🔍 STAKING ROUTE: Winston imported');
 
@@ -555,6 +563,116 @@ router.get('/leaderboard', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to get leaderboard'
+    });
+  }
+});
+
+// Sync tip allowances from contract to database
+async function syncTipAllowanceFromContract(walletAddress) {
+  try {
+    const rpcUrl = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
+    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    
+    const contractABI = [
+      {
+        "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+        "name": "getAvailableTipAllowance",
+        "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function"
+      }
+    ];
+    
+    const contract = new ethers.Contract(CONTRACTS.STEAKNSTAKE, contractABI, provider);
+    const contractAllowance = await contract.getAvailableTipAllowance(walletAddress);
+    const allowanceAmount = parseFloat(ethers.formatEther(contractAllowance));
+    
+    console.log(`💰 Contract allowance for ${walletAddress}: ${allowanceAmount} STEAK`);
+    
+    // Update database with contract state
+    const client = await db.getClient();
+    
+    // Get or create user
+    let userResult = await client.query(
+      'SELECT id FROM users WHERE wallet_address = $1',
+      [walletAddress.toLowerCase()]
+    );
+    
+    let userId;
+    if (userResult.rows.length === 0) {
+      // Create user if doesn't exist
+      const createResult = await client.query(
+        'INSERT INTO users (wallet_address, created_at) VALUES ($1, NOW()) RETURNING id',
+        [walletAddress.toLowerCase()]
+      );
+      userId = createResult.rows[0].id;
+    } else {
+      userId = userResult.rows[0].id;
+    }
+    
+    // Update or create staking position with contract tip allowance
+    const existingPositionResult = await client.query(
+      'SELECT id FROM staking_positions WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (existingPositionResult.rows.length > 0) {
+      // Update existing position
+      await client.query(`
+        UPDATE staking_positions 
+        SET 
+          available_tip_balance = $1,
+          last_reward_calculated = NOW(),
+          updated_at = NOW()
+        WHERE user_id = $2
+      `, [allowanceAmount, userId]);
+    } else {
+      // Create new position
+      await client.query(`
+        INSERT INTO staking_positions (
+          user_id, 
+          available_tip_balance, 
+          last_reward_calculated, 
+          updated_at
+        ) VALUES ($1, $2, NOW(), NOW())
+      `, [userId, allowanceAmount]);
+    }
+    
+    client.release();
+    
+    return {
+      success: true,
+      walletAddress,
+      contractAllowance: allowanceAmount,
+      syncedAt: new Date().toISOString()
+    };
+    
+  } catch (error) {
+    console.error('❌ Error syncing tip allowance from contract:', error);
+    throw error;
+  }
+}
+
+// GET /api/staking/sync-allowance/:address - Sync tip allowance from contract
+router.get('/sync-allowance/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    console.log(`🔄 Syncing tip allowance for ${address}...`);
+    
+    const result = await syncTipAllowanceFromContract(address);
+    
+    res.json({
+      success: true,
+      message: 'Tip allowance synced from contract',
+      data: result
+    });
+    
+  } catch (error) {
+    logger.error('Error syncing tip allowance:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to sync tip allowance from contract',
+      details: error.message
     });
   }
 });

@@ -43,6 +43,7 @@ export const stakingApi = {
     if (offset) params.append('offset', offset.toString());
     return api.get(`/api/staking/leaderboard${params.toString() ? `?${params}` : ''}`);
   },
+  syncAllowance: (address: string) => api.get(`/api/staking/sync-allowance/${address}`),
 };
 
 // Tipping API

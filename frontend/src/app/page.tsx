@@ -241,20 +241,38 @@ export default function HomePage() {
     const userClaimedEarnings = claimedEarnings ? parseFloat(formatEther(claimedEarnings)) : 0;
     const claimableTipsAmount = unclaimedEarnings ? parseFloat(formatEther(unclaimedEarnings)) : 0;
     
-    // Update state for use in JSX with real backend data if available
-    if (backendUserPosition) {
-      console.log('🏦 Backend user position found:', {
-        availableTipBalance: backendUserPosition.availableTipBalance,
-        stakedAmount: backendUserPosition.stakedAmount,
-        walletAddress: backendUserPosition.walletAddress
-      });
-      setUserClaimableTips(backendUserPosition.availableTipBalance);
-      setUserAllowanceBalance(backendUserPosition.availableTipBalance);
-    } else {
-      console.log('⚠️ No backend user position found - balance will show 0');
-      setUserClaimableTips(0);
-      setUserAllowanceBalance(0);
-    }
+    // Sync tip allowance from contract to backend, then use backend data
+    const syncAndUseBackendData = async () => {
+      if (!address) return;
+      
+      try {
+        console.log('🔄 Syncing tip allowance from contract...');
+        await stakingApi.syncAllowance(address);
+        
+        // Refetch backend position data after sync
+        const response = await stakingApi.getPosition(address);
+        const position = response.data.data;
+        setBackendUserPosition(position);
+        
+        const backendTipAllowance = position?.availableTipBalance || 0;
+        console.log('💰 Using backend tip allowance:', {
+          backendTipAllowance,
+          address
+        });
+        
+        // Update state with backend data (synced from contract)
+        setUserClaimableTips(backendTipAllowance);
+        setUserAllowanceBalance(backendTipAllowance);
+        
+      } catch (error) {
+        console.error('❌ Error syncing tip allowance:', error);
+        // Fallback to 0 if sync fails
+        setUserClaimableTips(0);
+        setUserAllowanceBalance(0);
+      }
+    };
+    
+    syncAndUseBackendData();
     
     // Debug logging
     console.log('📊 Contract data update:', {
@@ -271,14 +289,12 @@ export default function HomePage() {
     // Calculate total stakers: if there's any staked amount, there's at least 1 staker
     const totalStakers = realTotalStaked > 0 ? 1 : 0; // For now, simple calculation
     
-    // Update platform stats with real contract data
-    // Note: User hasn't actually received tips from others yet, so tipsEarned should be 0
-    // The 1000 allocated was meant as allowances to tip others, not tips received
+    // Update platform stats with backend data (synced from contract)
     setStakingStats({
       totalStakers,
       totalStaked: realTotalStaked,
       tipsEarned: 0, // Show 0 until user actually receives tips from others
-      tipsAvailable: backendUserPosition?.availableTipBalance || 0
+      tipsAvailable: userClaimableTips // Use backend data (synced from contract)
     });
     
     // Create leaderboard with real user if they have stakes
@@ -289,12 +305,12 @@ export default function HomePage() {
         walletAddress: address || '0x18A85ad341b2D6A2bd67fbb104B4827B922a2A3c',
         farcasterUsername: user?.username || 'epicdylan',
         stakedAmount: parseFloat(contractStakedAmount),
-        availableTipBalance: backendUserPosition?.availableTipBalance || 0,
+        availableTipBalance: userClaimableTips, // Use backend data (synced from contract)
         totalRewardsEarned: 0 // User hasn't received tips from others yet
       });
     }
     setTopStakers(leaderboard);
-  }, [contractTotalStaked, claimedEarnings, unclaimedEarnings, contractStakedAmount, address, user, backendUserPosition]);
+  }, [contractTotalStaked, claimedEarnings, unclaimedEarnings, contractStakedAmount, address, user, userClaimableTips]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;

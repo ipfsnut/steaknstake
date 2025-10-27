@@ -51,6 +51,8 @@ export function useStaking() {
     }
   });
 
+  // Removed direct contract reading for tip allowance - using backend sync instead
+
   // Wait for transaction confirmation
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash,

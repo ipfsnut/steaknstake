@@ -181,6 +181,48 @@ app.get('/api/debug/routes', (req, res) => {
   });
 });
 
+// Debug endpoint to test database
+app.get('/api/debug/database', async (req, res) => {
+  console.log('🔍 DATABASE DEBUG ENDPOINT CALLED');
+  try {
+    const connected = await db.testConnection();
+    if (connected) {
+      // Try a simple query
+      const client = await db.getClient();
+      const result = await client.query('SELECT COUNT(*) as user_count FROM users');
+      client.release();
+      
+      res.json({
+        timestamp: new Date().toISOString(),
+        database: {
+          connected: true,
+          userCount: result.rows[0].user_count,
+          environment: process.env.NODE_ENV,
+          databaseUrlSet: !!process.env.DATABASE_URL
+        }
+      });
+    } else {
+      res.status(503).json({
+        timestamp: new Date().toISOString(),
+        database: {
+          connected: false,
+          error: 'Connection test failed'
+        }
+      });
+    }
+  } catch (error) {
+    console.error('🚨 DATABASE DEBUG ERROR:', error);
+    res.status(503).json({
+      timestamp: new Date().toISOString(),
+      database: {
+        connected: false,
+        error: error.message,
+        code: error.code
+      }
+    });
+  }
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({

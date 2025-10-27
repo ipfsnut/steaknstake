@@ -9,7 +9,7 @@ export const config = createConfig({
     [base.id]: http(),
   },
   connectors: [
-    injected(),
-    miniAppConnector()
+    miniAppConnector(),
+    injected()
   ]
 })

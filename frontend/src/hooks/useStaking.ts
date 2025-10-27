@@ -117,6 +117,8 @@ export function useStaking() {
         setUserError('Insufficient ETH for transaction fees.');
       } else if (error?.message?.includes('network')) {
         setUserError('Network error. Please check your connection.');
+      } else if (error?.message?.includes('getChainId')) {
+        setUserError('Wallet connection issue. Please refresh and try again.');
       } else {
         setUserError('Transaction failed. Please try again.');
       }

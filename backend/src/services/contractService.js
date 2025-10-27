@@ -18,6 +18,30 @@ const CONTRACTS = {
 
 const PROTOCOL_WALLET = '0xD31C0C3BdDAcc482Aa5fE64d27cDDBaB72864733';
 
+// ERC20 ABI for approvals
+const ERC20_ABI = [
+  {
+    "inputs": [
+      {"internalType": "address", "name": "spender", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "approve",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "owner", "type": "address"},
+      {"internalType": "address", "name": "spender", "type": "address"}
+    ],
+    "name": "allowance",
+    "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
 // SteakNStake contract ABI (split and fund functions)
 const STEAKNSTAKE_ABI = [
   {
@@ -207,8 +231,52 @@ async function callFundContract(rewardAmountSteak) {
   }
 }
 
+// Approve the SteakNStake contract to spend STEAK tokens from protocol wallet
+async function approveContractSpending(amount) {
+  try {
+    logger.info(`🔓 Approving SteakNStake contract to spend ${amount} STEAK tokens`);
+    
+    const amountWei = ethers.parseEther(amount.toString());
+    const signer = getSigner();
+    
+    // Create STEAK token contract instance
+    const steakToken = new ethers.Contract(CONTRACTS.STEAK_TOKEN, ERC20_ABI, signer);
+    
+    // Approve the SteakNStake contract to spend tokens from protocol wallet
+    logger.info(`📋 Approving ${CONTRACTS.STEAKNSTAKE} to spend ${amount} STEAK`);
+    
+    const gasEstimate = await steakToken.approve.estimateGas(CONTRACTS.STEAKNSTAKE, amountWei);
+    logger.info(`⛽ Estimated gas: ${gasEstimate.toString()}`);
+    
+    const tx = await steakToken.approve(CONTRACTS.STEAKNSTAKE, amountWei, {
+      gasLimit: gasEstimate + BigInt(50000)
+    });
+    
+    logger.info(`📝 Approval transaction submitted: ${tx.hash}`);
+    
+    const receipt = await tx.wait();
+    
+    logger.info(`✅ Approval confirmed:`, {
+      hash: tx.hash,
+      blockNumber: receipt.blockNumber,
+      approved: ethers.formatEther(amountWei) + ' STEAK'
+    });
+    
+    return {
+      success: true,
+      transactionHash: tx.hash,
+      approvedAmount: amount
+    };
+    
+  } catch (error) {
+    logger.error('❌ Approval failed:', error);
+    throw new Error(`Approval failed: ${error.message}`);
+  }
+}
+
 module.exports = {
   callContractSplit,
   callFundContract,
+  approveContractSpending,
   testContractConnection
 };

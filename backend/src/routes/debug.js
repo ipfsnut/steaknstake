@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../services/database');
-const { testContractConnection, callFundContract } = require('../services/contractService');
+const { testContractConnection, callFundContract, approveContractSpending } = require('../services/contractService');
 const { testContractSplit, triggerBatchProcessing } = require('../services/batchProcessor');
 
 // Simple database test endpoint
@@ -101,6 +101,31 @@ router.post('/contract-split-test', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Contract split test failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Approve contract to spend STEAK tokens
+router.post('/approve-contract', async (req, res) => {
+  try {
+    const { amount = 10000 } = req.body; // Default 10k STEAK approval
+    console.log(`🔍 Approving contract to spend ${amount} STEAK...`);
+    
+    const result = await approveContractSpending(amount);
+    
+    console.log('✅ Contract approval successful:', result);
+    res.json({
+      success: true,
+      message: `Contract approved to spend ${amount} STEAK`,
+      ...result
+    });
+    
+  } catch (error) {
+    console.error('❌ Contract approval failed:', error);
     res.status(500).json({
       success: false,
       error: error.message,

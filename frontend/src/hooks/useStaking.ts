@@ -6,7 +6,7 @@ import { parseEther, formatEther } from 'viem';
 import { CONTRACTS, ERC20_ABI, STEAKNSTAKE_ABI } from '@/lib/contracts';
 import { stakingApi } from '@/lib/api';
 
-export function useStaking() {
+export function useStaking(farcasterUser?: any) {
   const { address, isConnected } = useAccount();
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const [currentStep, setCurrentStep] = useState<'approve' | 'stake' | 'completed'>('approve');
@@ -128,7 +128,7 @@ export function useStaking() {
         setSuccessMessage('STEAK tokens approved successfully!');
       } else if (currentStep === 'stake' && pendingTransaction?.type === 'stake') {
         // Call backend API to record the stake
-        handleStakeBackendUpdate(pendingTransaction.amount, hash);
+        handleStakeBackendUpdate(pendingTransaction.amount, hash, farcasterUser);
         setSuccessMessage('STEAK tokens staked successfully!');
         setCurrentStep('completed');
         // Reset to correct step after a delay based on allowance
@@ -175,20 +175,23 @@ export function useStaking() {
   }, [isConfirmed, currentStep, refetchAllowance, refetchBalance, refetchStaked, address, error, isPending, isConfirming, pendingTransaction, hash]);
 
   // Handle backend API call for stake transactions
-  const handleStakeBackendUpdate = async (amount: string, transactionHash: `0x${string}` | undefined) => {
+  const handleStakeBackendUpdate = async (amount: string, transactionHash: `0x${string}` | undefined, farcasterUser?: any) => {
     if (!address || !transactionHash) return;
     
     try {
       console.log('📡 Calling backend to record stake...', {
         walletAddress: address,
         amount: parseFloat(amount),
-        transactionHash
+        transactionHash,
+        farcasterUser
       });
       
       const response = await stakingApi.stake({
         walletAddress: address,
         amount: parseFloat(amount),
         transactionHash,
+        farcasterFid: farcasterUser?.fid,
+        farcasterUsername: farcasterUser?.username,
         // TODO: Add block number if needed
       });
       

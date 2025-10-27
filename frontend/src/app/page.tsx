@@ -138,7 +138,7 @@ export default function HomePage() {
     refetchData,
     clearError,
     clearSuccess
-  } = useStaking();
+  } = useStaking(user); // Pass Farcaster user data
 
   // $STEAK token contract address
   const STEAK_TOKEN_ADDRESS = '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
@@ -182,6 +182,37 @@ export default function HomePage() {
   useEffect(() => {
     console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp, 'user:', user);
   }, [isReady, isMiniApp, user]);
+
+  // Auto-sync user data when both wallet and Farcaster are connected
+  useEffect(() => {
+    const autoSyncUserData = async () => {
+      if (address && user?.fid && user?.username) {
+        console.log('🔗 Auto-syncing user data:', { address, fid: user.fid, username: user.username });
+        
+        try {
+          // Update user profile with Farcaster data
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/profile/${address}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              farcasterFid: user.fid,
+              farcasterUsername: user.username
+            })
+          });
+          
+          if (response.ok) {
+            console.log('✅ User profile auto-synced with Farcaster data');
+          } else {
+            console.warn('⚠️ Failed to auto-sync user data:', response.status);
+          }
+        } catch (error) {
+          console.error('❌ Error auto-syncing user data:', error);
+        }
+      }
+    };
+    
+    autoSyncUserData();
+  }, [address, user]);
 
   const connectWallet = async () => {
     try {

@@ -150,6 +150,34 @@ app.get('/api/debug/deployment', (req, res) => {
   });
 });
 
+// Debug endpoint to check routes
+app.get('/api/debug/routes', (req, res) => {
+  console.log('🔍 ROUTES DEBUG ENDPOINT CALLED');
+  const routes = [];
+  app._router.stack.forEach((middleware) => {
+    if (middleware.route) {
+      routes.push({
+        path: middleware.route.path,
+        methods: Object.keys(middleware.route.methods)
+      });
+    } else if (middleware.name === 'router') {
+      middleware.handle.stack.forEach((handler) => {
+        if (handler.route) {
+          routes.push({
+            path: handler.route.path,
+            methods: Object.keys(handler.route.methods)
+          });
+        }
+      });
+    }
+  });
+  res.json({
+    timestamp: new Date().toISOString(),
+    routes: routes,
+    middlewareCount: app._router.stack.length
+  });
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({

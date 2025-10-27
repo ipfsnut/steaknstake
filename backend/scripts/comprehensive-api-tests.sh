@@ -6,7 +6,7 @@
 set -e # Exit on any error
 
 # Configuration
-BASE_URL="https://steaknstake-backend-production.up.railway.app"
+BASE_URL="https://happy-determination-production.up.railway.app"
 TEST_WALLET="0x18A85ad341b2D6A2bd67fbb104B4827B922a2A3c"
 TEST_FID=8573
 TEST_USERNAME="epicdylan"

@@ -32,7 +32,7 @@ async function testSelfTipProtection() {
     console.log('Expected: Should be blocked with error message\n');
     
     const fetch = require('node-fetch');
-    const BACKEND_URL = process.env.BACKEND_URL || 'https://steaknstake-backend-production.up.railway.app';
+    const BACKEND_URL = process.env.BACKEND_URL || 'https://happy-determination-production.up.railway.app';
     
     const response = await fetch(`${BACKEND_URL}/api/farcaster/webhook`, {
       method: 'POST',

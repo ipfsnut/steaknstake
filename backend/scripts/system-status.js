@@ -28,7 +28,7 @@ async function checkEnvironment() {
 
 async function checkBackend() {
   try {
-    const BACKEND_URL = process.env.BACKEND_URL || 'https://steaknstake-backend-production.up.railway.app';
+    const BACKEND_URL = process.env.BACKEND_URL || 'https://happy-determination-production.up.railway.app';
     const response = await fetch(`${BACKEND_URL}/api/health`, { timeout: 5000 });
     
     if (response.ok) {

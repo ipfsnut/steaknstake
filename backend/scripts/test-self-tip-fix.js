@@ -7,7 +7,7 @@ async function testSelfTipFix() {
   try {
     console.log('🧪 Testing self-tip protection fix...');
     
-    const response = await fetch('https://steaknstake-backend-production.up.railway.app/api/tipping/send', {
+    const response = await fetch('https://happy-determination-production.up.railway.app/api/tipping/send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

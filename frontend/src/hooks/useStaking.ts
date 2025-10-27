@@ -98,10 +98,10 @@ export function useStaking() {
       } else if (currentStep === 'stake') {
         setSuccessMessage('STEAK tokens staked successfully!');
         setCurrentStep('completed');
-        // Reset to approve step after a delay
+        // Reset to correct step after a delay based on allowance
         setTimeout(() => {
-          setCurrentStep('approve');
           setSuccessMessage(null);
+          // Don't reset currentStep here - let the allowance useEffect handle it
         }, 3000);
       }
     }

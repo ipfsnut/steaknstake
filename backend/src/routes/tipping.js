@@ -78,10 +78,10 @@ router.post('/send', async (req, res) => {
         });
       }
       
-      // Check min/max tip amounts
+      // Check min tip amount
       const settingsResult = await client.query(
-        'SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ($1, $2)',
-        ['min_tip_amount', 'max_tip_amount']
+        'SELECT setting_key, setting_value FROM system_settings WHERE setting_key = $1',
+        ['min_tip_amount']
       );
       
       const settings = {};
@@ -97,13 +97,7 @@ router.post('/send', async (req, res) => {
         });
       }
       
-      if (tipAmount > (settings.max_tip_amount || 1000)) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({
-          success: false,
-          error: `Maximum tip amount is ${settings.max_tip_amount || 1000} STEAK`
-        });
-      }
+      // No max tip limit - users can tip their entire balance if they want
       
       // Deduct tip amount from tipper's available balance
       await client.query(`

@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     // Farcaster Frame metadata
     'fc:frame': 'vNext',
     'fc:frame:image': 'https://steak.epicdylan.com/SteakNStake.png',
-    'fc:frame:image:aspect_ratio': '1.91:1',
+    'fc:frame:image:aspect_ratio': '1.5:1',
     'fc:frame:button:1': 'Open SteakNStake',
     'fc:frame:button:1:action': 'link',
     'fc:frame:button:1:target': 'https://steak.epicdylan.com',

@@ -29,6 +29,9 @@ interface UserPosition {
   stakedAmount: number;
   totalRewardsEarned: number;
   availableTipBalance: number;
+  remainingDailyAllowance: number;
+  dailyAllowanceStart: number;
+  dailyTipsSent: number;
   stakedAt: string | null;
   farcasterFid: number | null;
   farcasterUsername: string | null;
@@ -103,16 +106,7 @@ export default function HomePage() {
     }
   });
 
-  // Read user's unclaimed earnings (TipN pattern)
-  const { data: unclaimedEarnings } = useReadContract({
-    address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
-    abi: STEAKNSTAKE_ABI,
-    functionName: 'getUnclaimedEarnings',
-    args: address ? [address, BigInt('0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')] : undefined, // Max uint256 for no limit
-    query: {
-      enabled: !!address
-    }
-  });
+  // Removed: Read user's unclaimed earnings (TipN pattern) - using backend API instead
 
   // Read total rewards distributed globally (TipN pattern)
   const { data: totalRewardsDistributed } = useReadContract({
@@ -295,40 +289,40 @@ export default function HomePage() {
   useEffect(() => {
     const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
     const userClaimedEarnings = claimedEarnings ? parseFloat(formatEther(claimedEarnings)) : 0;
-    const claimableTipsAmount = unclaimedEarnings ? parseFloat(formatEther(unclaimedEarnings)) : 0;
     
-    // Sync tip allowance from contract to backend, then use backend data
-    const syncAndUseBackendData = async () => {
+    // Use backend data for tip balance - no need to read from contract anymore
+    const fetchBackendData = async () => {
       if (!address) return;
       
       try {
-        console.log('🔄 Syncing tip allowance from contract...');
-        await stakingApi.syncAllowance(address);
+        console.log('📡 Fetching user position from backend API...');
         
-        // Refetch backend position data after sync
+        // Fetch backend position data
         const response = await stakingApi.getPosition(address);
         const position = response.data.data;
         setBackendUserPosition(position);
         
-        const backendTipAllowance = position?.availableTipBalance || 0;
+        const backendTipAllowance = position?.remainingDailyAllowance || 0;
         console.log('💰 Using backend tip allowance:', {
           backendTipAllowance,
+          dailyAllowanceStart: position?.dailyAllowanceStart,
+          dailyTipsSent: position?.dailyTipsSent,
           address
         });
         
-        // Update state with backend data (synced from contract)
+        // Update state with backend data
         setUserClaimableTips(backendTipAllowance);
         setUserAllowanceBalance(backendTipAllowance);
         
       } catch (error) {
-        console.error('❌ Error syncing tip allowance:', error);
-        // Fallback to 0 if sync fails
+        console.error('❌ Error fetching backend data:', error);
+        // Fallback to 0 if backend fails
         setUserClaimableTips(0);
         setUserAllowanceBalance(0);
       }
     };
     
-    syncAndUseBackendData();
+    fetchBackendData();
     
     // Fetch unclaimed tips if user has Farcaster FID
     fetchUnclaimedTips();
@@ -340,20 +334,18 @@ export default function HomePage() {
       realTotalStaked,
       claimedEarnings: claimedEarnings?.toString(),
       userClaimedEarnings,
-      unclaimedEarnings: unclaimedEarnings?.toString(),
-      claimableTipsAmount,
       contractStakedAmount
     });
     
     // Calculate total stakers: if there's any staked amount, there's at least 1 staker
     const totalStakers = realTotalStaked > 0 ? 1 : 0; // For now, simple calculation
     
-    // Update platform stats with backend data (synced from contract)
+    // Update platform stats with backend data
     setStakingStats({
       totalStakers,
       totalStaked: realTotalStaked,
       tipsEarned: 0, // Show 0 until user actually receives tips from others
-      tipsAvailable: userClaimableTips // Use backend data (synced from contract)
+      tipsAvailable: userClaimableTips // Use backend data
     });
     
     // Create leaderboard with real user if they have stakes
@@ -364,12 +356,12 @@ export default function HomePage() {
         walletAddress: address || '0x18A85ad341b2D6A2bd67fbb104B4827B922a2A3c',
         farcasterUsername: user?.username || 'epicdylan',
         stakedAmount: parseFloat(contractStakedAmount),
-        availableTipBalance: userClaimableTips, // Use backend data (synced from contract)
+        availableTipBalance: userClaimableTips, // Use backend data
         totalRewardsEarned: 0 // User hasn't received tips from others yet
       });
     }
     setTopStakers(leaderboard);
-  }, [contractTotalStaked, claimedEarnings, unclaimedEarnings, contractStakedAmount, address, user, userClaimableTips]);
+  }, [contractTotalStaked, claimedEarnings, contractStakedAmount, address, user, userClaimableTips]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
@@ -503,7 +495,8 @@ export default function HomePage() {
         setUserAllowanceBalance(prev => Math.max(0, prev - tipAmount));
         setBackendUserPosition(prev => prev ? {
           ...prev,
-          availableTipBalance: Math.max(0, prev.availableTipBalance - tipAmount)
+          remainingDailyAllowance: Math.max(0, prev.remainingDailyAllowance - tipAmount),
+          availableTipBalance: Math.max(0, prev.availableTipBalance - tipAmount) // Keep both for compatibility
         } : null);
         
         console.log(`💰 Tip sent successfully: ${tipAmount} $STEAK to @${recipientUsername}`);

@@ -12,8 +12,8 @@
     "splashImageUrl": "https://steak.epicdylan.com/SteakNStake.png",
     "splashBackgroundColor": "#000000",
     "webhookUrl": "https://happy-determination-production.up.railway.app/api/farcaster/webhook",
-    "subtitle": "Stake $STEAK; tip $STEAK; grow.",
-    "description": "Stake $STEAK; tip $STEAK; grow.",
+    "subtitle": "Stake STEAK; tip STEAK; grow.",
+    "description": "Stake STEAK; tip STEAK; grow.",
     "primaryCategory": "social",
     "tags": ["social", "community", "steak", "staking"]
   }

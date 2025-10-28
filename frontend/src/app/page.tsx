@@ -956,7 +956,7 @@ export default function HomePage() {
                   <p><strong>Reply to any cast with:</strong></p>
                   <p>• "@steaknstake 25 $STEAK" (must tag the bot)</p>
                   <p>• Tips processed daily at midnight UTC</p>
-                  <p>• Recipients claim at steak.epicdylan.com</p>
+                  <p>• Recipients claim via the SteakNStake miniapp</p>
                   <p>• You can only tip up to your allowance balance</p>
                 </div>
               </div>

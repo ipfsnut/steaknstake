@@ -310,7 +310,7 @@ async function processTipFromFarcaster(tipData) {
     
     if (positionResult.rows.length === 0) {
       logger.warn(`Tip failed: Tipper ${tipperUsername} not found in staking_positions`);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'You need to stake STEAK first at steak.epicdylan.com!');
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'You need to stake STEAK first via the SteakNStake miniapp!');
       client.release();
       return;
     }
@@ -417,7 +417,7 @@ async function postTipSuccess(parentHash, tipperUsername, recipientUsername, amo
 
 🎉 @${tipperUsername} tipped ${amount} $STEAK to @${recipientUsername}!
 
-💝 @${recipientUsername}, you can claim it from the SteakNStake miniapp at: https://steak.epicdylan.com
+💝 @${recipientUsername}, you can claim it from the SteakNStake miniapp at: https://farcaster.xyz/miniapps/_5-QJXmMm-hF/steak-n-stake
 
 🆔 Tip ID: ${tipId}`;
 

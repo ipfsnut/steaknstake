@@ -195,11 +195,26 @@ async function allocateDailyTipAllowances() {
     
     // Calculate daily reward amount dynamically based on protocol wallet balance
     const protocolWalletBalance = await getProtocolWalletBalance();
+    const outstandingAllowances = await getTotalOutstandingAllowances(client);
+    const availableBalance = protocolWalletBalance - outstandingAllowances;
     const allocationPercentage = parseFloat(process.env.DAILY_ALLOCATION_PERCENTAGE || '0.5'); // 0.5% default
-    const dailyRewardPool = protocolWalletBalance * (allocationPercentage / 100);
+    const dailyRewardPool = availableBalance * (allocationPercentage / 100);
     
     logger.info(`💰 Protocol wallet balance: ${protocolWalletBalance.toLocaleString()} STEAK`);
+    logger.info(`⏳ Outstanding allowances: ${outstandingAllowances.toLocaleString()} STEAK`);
+    logger.info(`✅ Available for allocation: ${availableBalance.toLocaleString()} STEAK`);
     logger.info(`📊 Daily allocation: ${allocationPercentage}% = ${dailyRewardPool.toLocaleString()} STEAK`);
+    
+    // Safety check: don't allocate if we don't have sufficient available balance
+    if (availableBalance <= 0) {
+      logger.warn('⚠️ No available balance for allocation (outstanding allowances >= wallet balance)');
+      return;
+    }
+    
+    if (dailyRewardPool <= 0) {
+      logger.warn('⚠️ Daily reward pool is zero or negative, skipping allocation');
+      return;
+    }
     
     // Daily allowances are handled off-chain via protocol wallet
     // No contract interaction needed for daily allocation
@@ -401,11 +416,36 @@ async function ensureContractAllowance(requiredAmount) {
   }
 }
 
+// Calculate total outstanding tip allowances across all users
+async function getTotalOutstandingAllowances(client) {
+  try {
+    logger.info('📊 Calculating total outstanding allowances...');
+    
+    const result = await client.query(`
+      SELECT 
+        COALESCE(SUM(daily_allowance_start - daily_tips_sent), 0) as total_outstanding
+      FROM staking_positions 
+      WHERE daily_allowance_start > daily_tips_sent
+    `);
+    
+    const totalOutstanding = parseFloat(result.rows[0].total_outstanding) || 0;
+    logger.info(`📋 Total outstanding allowances: ${totalOutstanding.toLocaleString()} STEAK`);
+    
+    return totalOutstanding;
+    
+  } catch (error) {
+    logger.error('❌ Failed to calculate outstanding allowances:', error);
+    // Return 0 as fallback to be conservative
+    return 0;
+  }
+}
+
 module.exports = {
   startBatchProcessor,
   triggerBatchProcessing,
   processPendingTips,
   testContractSplit,
   runDailyTipCycle,
-  getProtocolWalletBalance
+  getProtocolWalletBalance,
+  getTotalOutstandingAllowances
 };

@@ -213,4 +213,87 @@ router.post('/trigger-batch', async (req, res) => {
   }
 });
 
+// Reset staking position for wallet (admin only)
+router.post('/reset-staking', async (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+    
+    if (!walletAddress) {
+      return res.status(400).json({ success: false, error: 'walletAddress required' });
+    }
+    
+    const client = await db.getClient();
+    
+    // Reset staking position to 0
+    const result = await client.query(`
+      UPDATE staking_positions 
+      SET 
+        staked_amount = 0,
+        total_rewards_earned = 0,
+        available_tip_balance = 0,
+        daily_allowance_start = 0,
+        daily_tips_sent = 0,
+        updated_at = NOW()
+      WHERE user_id = (SELECT id FROM users WHERE wallet_address = $1)
+      RETURNING *
+    `, [walletAddress.toLowerCase()]);
+    
+    client.release();
+    
+    res.json({
+      success: true,
+      message: `Staking position reset for ${walletAddress}`,
+      rowsAffected: result.rowCount,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Reset staking failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
+// Get all staking positions
+router.get('/all-staking', async (req, res) => {
+  try {
+    const client = await db.getClient();
+    
+    const result = await client.query(`
+      SELECT 
+        u.id as user_id,
+        u.wallet_address,
+        u.farcaster_username,
+        sp.staked_amount,
+        sp.total_rewards_earned,
+        sp.daily_allowance_start,
+        sp.daily_tips_sent,
+        sp.staked_at
+      FROM staking_positions sp 
+      JOIN users u ON sp.user_id = u.id
+      ORDER BY sp.staked_amount DESC
+    `);
+    
+    client.release();
+    
+    res.json({
+      success: true,
+      stakingPositions: result.rows,
+      count: result.rows.length,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Get all staking failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 module.exports = router;

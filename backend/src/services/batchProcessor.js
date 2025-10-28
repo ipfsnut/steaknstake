@@ -116,6 +116,11 @@ async function processPendingTips() {
     logger.info(`💰 Total tip amount to process: ${totalTipAmount} STEAK`);
     logger.info(`👥 Recipients: ${Object.keys(tipsByRecipient).length}`);
     
+    // Ensure protocol wallet has sufficient allowance for contract transfers
+    if (totalTipAmount > 0) {
+      await ensureContractAllowance(totalTipAmount);
+    }
+    
     // Signal claimable tip amounts to contract for each recipient
     for (const recipientWallet in tipsByRecipient) {
       const recipientData = tipsByRecipient[recipientWallet];
@@ -333,6 +338,66 @@ async function getProtocolWalletBalance() {
     const fallbackAmount = 100000; // 100k STEAK fallback
     logger.warn(`⚠️ Using fallback balance: ${fallbackAmount} STEAK`);
     return fallbackAmount;
+  }
+}
+
+// Ensure protocol wallet has sufficient ERC20 allowance for contract transfers
+async function ensureContractAllowance(requiredAmount) {
+  const { approveContractSpending } = require('./contractService');
+  
+  try {
+    logger.info(`🔍 Checking protocol wallet allowance for ${requiredAmount} STEAK claims`);
+    
+    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'https://mainnet.base.org');
+    const steakTokenAddress = process.env.STEAK_TOKEN_ADDRESS || '0x1C96D434DEb1fF21Fc5406186Eef1f970fAF3B07';
+    const protocolWalletAddress = process.env.PROTOCOL_WALLET_ADDRESS || '0xD31C0C3BdDAcc482Aa5fE64d27cDDBaB72864733';
+    const contractAddress = process.env.STEAKNSTAKE_CONTRACT_ADDRESS || '0xdA9BD5c259Ae90e99158f45f00238d1BaDb3694D';
+    
+    const ERC20_ABI = [
+      'function allowance(address owner, address spender) view returns (uint256)'
+    ];
+    
+    const steakToken = new ethers.Contract(steakTokenAddress, ERC20_ABI, provider);
+    const currentAllowance = await steakToken.allowance(protocolWalletAddress, contractAddress);
+    const currentAllowanceSteak = parseFloat(ethers.formatEther(currentAllowance));
+    
+    logger.info(`💰 Current contract allowance: ${currentAllowanceSteak} STEAK`);
+    logger.info(`💰 Required for claims: ${requiredAmount} STEAK`);
+    
+    // Update database with current allowance
+    const client = await require('./database').getClient();
+    await client.query(
+      'UPDATE system_settings SET setting_value = $1, updated_at = CURRENT_TIMESTAMP WHERE setting_key = $2',
+      [currentAllowanceSteak.toString(), 'protocol_wallet_allowance']
+    );
+    client.release();
+    
+    // Check if we need more allowance (keep 10k buffer)
+    const bufferAmount = 10000;
+    const neededAllowance = requiredAmount + bufferAmount;
+    
+    if (currentAllowanceSteak < neededAllowance) {
+      const approveAmount = neededAllowance * 2; // Approve 2x to reduce future approvals
+      logger.warn(`⚠️ Insufficient allowance! Approving ${approveAmount} STEAK`);
+      
+      await approveContractSpending(approveAmount);
+      
+      // Update database with new allowance
+      const newClient = await require('./database').getClient();
+      await newClient.query(
+        'UPDATE system_settings SET setting_value = $1, updated_at = CURRENT_TIMESTAMP WHERE setting_key = $2',
+        [approveAmount.toString(), 'protocol_wallet_allowance']
+      );
+      newClient.release();
+      
+      logger.info(`✅ Approved ${approveAmount} STEAK for contract transfers`);
+    } else {
+      logger.info(`✅ Sufficient allowance available: ${currentAllowanceSteak} STEAK`);
+    }
+    
+  } catch (error) {
+    logger.error('❌ Failed to check/update contract allowance:', error);
+    throw new Error(`Allowance management failed: ${error.message}`);
   }
 }
 

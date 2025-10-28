@@ -171,9 +171,9 @@ router.get('/position/:address', async (req, res) => {
     
     const user = userResult.rows[0];
     
-    // Get staking position
+    // Get staking position with daily allowance
     const positionResult = await client.query(
-      'SELECT staked_amount, total_rewards_earned, available_tip_balance, staked_at FROM staking_positions WHERE user_id = $1',
+      'SELECT staked_amount, total_rewards_earned, daily_allowance_start, daily_tips_sent, last_allowance_reset, staked_at FROM staking_positions WHERE user_id = $1',
       [user.id]
     );
     
@@ -181,13 +181,24 @@ router.get('/position/:address', async (req, res) => {
     
     const position = positionResult.rows[0];
     
+    // Calculate current daily allowance
+    const dailyAllowanceStart = position ? parseFloat(position.daily_allowance_start) : 0;
+    const dailyTipsSent = position ? parseFloat(position.daily_tips_sent) : 0;
+    const remainingDailyAllowance = dailyAllowanceStart - dailyTipsSent;
+    
     return res.json({
       success: true,
       data: {
         walletAddress: user.wallet_address,
         stakedAmount: position ? parseFloat(position.staked_amount) : 0,
         totalRewardsEarned: position ? parseFloat(position.total_rewards_earned) : 0,
-        availableTipBalance: position ? parseFloat(position.available_tip_balance) : 0,
+        // Legacy field for backwards compatibility
+        availableTipBalance: remainingDailyAllowance,
+        // New daily allowance fields
+        dailyAllowanceStart: dailyAllowanceStart,
+        dailyTipsSent: dailyTipsSent,
+        remainingDailyAllowance: remainingDailyAllowance,
+        lastAllowanceReset: position ? position.last_allowance_reset : null,
         stakedAt: position ? position.staked_at : null,
         farcasterFid: user.farcaster_fid,
         farcasterUsername: user.farcaster_username

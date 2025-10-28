@@ -12,8 +12,7 @@ import { CONTRACTS, STEAKNSTAKE_ABI } from '@/lib/contracts';
 interface StakingStats {
   totalStakers: number;
   totalStaked: number;
-  tipsEarned: number; // Total tips user has been allocated
-  tipsAvailable: number; // User's claimable balance (allocated - claimed)
+  tipsAvailable: number; // User's claimable balance for tipping
 }
 
 interface TippingStats {
@@ -52,7 +51,6 @@ export default function HomePage() {
   const [stakingStats, setStakingStats] = useState<StakingStats>({
     totalStakers: 0,
     totalStaked: 0,
-    tipsEarned: 0,
     tipsAvailable: 0
   });
   const [tippingStats, setTippingStats] = useState<TippingStats | null>(null);
@@ -344,7 +342,6 @@ export default function HomePage() {
     setStakingStats({
       totalStakers,
       totalStaked: realTotalStaked,
-      tipsEarned: 0, // Show 0 until user actually receives tips from others
       tipsAvailable: userClaimableTips // Use backend data
     });
     
@@ -1179,13 +1176,13 @@ export default function HomePage() {
                 <div className="text-sm text-gray-700 space-y-1">
                   <p><strong>Stakers:</strong> Users with active stakes</p>
                   <p><strong>$STEAK Staked:</strong> Total tokens locked in staking</p>
-                  <p><strong>Tips Earned:</strong> Total tips you've been allocated</p>
-                  <p><strong>Tips Available:</strong> Your claimable tip balance</p>
+                  <p><strong>Tips Available:</strong> Your allowance balance for tipping</p>
+                  <p><strong>Tips Received:</strong> Tips others have sent you to claim</p>
                 </div>
               </div>
             )}
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto mb-12">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">
               <button 
                 onClick={() => setActiveSection('leaderboard')}
                 className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 text-center border border-blue-200 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer"
@@ -1204,16 +1201,6 @@ export default function HomePage() {
                 <div className="text-2xl font-bold text-green-600 mb-1">{formatNumber(stakingStats.totalStaked)}</div>
                 <div className="text-sm text-green-700 font-medium">$STEAK Staked</div>
                 <div className="text-xs text-green-500 mt-2">→ Start Staking</div>
-              </button>
-              
-              <button 
-                onClick={() => setActiveSection('stake')}
-                className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 text-center border border-purple-200 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer"
-              >
-                <div className="text-3xl mb-3">🎁</div>
-                <div className="text-2xl font-bold text-purple-600 mb-1">{formatNumber(stakingStats.tipsEarned)}</div>
-                <div className="text-sm text-purple-700 font-medium">Tips Earned</div>
-                <div className="text-xs text-purple-500 mt-2">→ Earn Rewards</div>
               </button>
               
               <button 

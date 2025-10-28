@@ -116,8 +116,8 @@ async function processPendingTips() {
     logger.info(`💰 Total tip amount to process: ${totalTipAmount} STEAK`);
     logger.info(`👥 Recipients: ${Object.keys(tipsByRecipient).length}`);
     
-    // Call smart contract split() function to distribute rewards
-    await processContractSplit(totalTipAmount);
+    // Tips are handled off-chain via protocol wallet allowances
+    // No contract interaction needed for tip processing
     
     // Mark all tips as processed
     await client.query('BEGIN');
@@ -181,8 +181,8 @@ async function allocateDailyTipAllowances() {
     logger.info(`💰 Protocol wallet balance: ${protocolWalletBalance.toLocaleString()} STEAK`);
     logger.info(`📊 Daily allocation: ${allocationPercentage}% = ${dailyRewardPool.toLocaleString()} STEAK`);
     
-    // Call smart contract split() function to create tip allowances
-    await processContractSplit(dailyRewardPool);
+    // Daily allowances are handled off-chain via protocol wallet
+    // No contract interaction needed for daily allocation
     
     // Update database with new tip allowances (proportional to stake)
     const stakersResult = await client.query(`
@@ -199,11 +199,13 @@ async function allocateDailyTipAllowances() {
       const stakePercent = parseFloat(staker.staked_amount) / parseFloat(total_staked);
       const dailyAllowance = dailyRewardPool * stakePercent;
       
-      // Add to their available tip balance
+      // Set new daily allowance and reset tips sent for new day
       await client.query(`
         UPDATE staking_positions 
         SET 
-          available_tip_balance = available_tip_balance + $1,
+          daily_allowance_start = $1,
+          daily_tips_sent = 0,
+          last_allowance_reset = CURRENT_DATE,
           total_rewards_earned = total_rewards_earned + $1,
           last_reward_calculated = NOW(),
           updated_at = NOW()

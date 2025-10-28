@@ -304,12 +304,12 @@ async function processTipFromFarcaster(tipData) {
     
     // Check daily allowance using new system
     const positionResult = await client.query(
-      'SELECT * FROM staker_positions WHERE wallet_address = $1',
+      'SELECT sp.* FROM staking_positions sp JOIN users u ON sp.user_id = u.id WHERE u.wallet_address = $1',
       [tipper.wallet_address.toLowerCase()]
     );
     
     if (positionResult.rows.length === 0) {
-      logger.warn(`Tip failed: Tipper ${tipperUsername} not found in staker_positions`);
+      logger.warn(`Tip failed: Tipper ${tipperUsername} not found in staking_positions`);
       await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'You need to stake STEAK first at steak.epicdylan.com!');
       client.release();
       return;
@@ -333,13 +333,15 @@ async function processTipFromFarcaster(tipData) {
       await client.query('BEGIN');
       
       // Update daily tips sent (don't touch contract until batch processing)
-      await client.query(`
-        UPDATE staker_positions 
+      const updateResult = await client.query(`
+        UPDATE staking_positions 
         SET 
           daily_tips_sent = daily_tips_sent + $1,
           updated_at = $2
-        WHERE wallet_address = $3
+        WHERE user_id = (SELECT id FROM users WHERE wallet_address = $3)
       `, [tipAmount, new Date(), tipper.wallet_address.toLowerCase()]);
+      
+      logger.info(`💳 Daily tips update: ${updateResult.rowCount} rows affected for wallet ${tipper.wallet_address}`);
       
       // Find recipient wallet address by FID
       const recipientResult = await client.query(

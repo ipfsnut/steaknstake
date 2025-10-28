@@ -189,4 +189,28 @@ router.get('/db-test', async (req, res) => {
   }
 });
 
+// Manual batch processor trigger for testing
+router.post('/trigger-batch', async (req, res) => {
+  try {
+    const { triggerBatchProcessing } = require('../services/batchProcessor');
+    
+    console.log('🔧 Manual batch processing triggered via API endpoint');
+    await triggerBatchProcessing();
+    
+    res.json({
+      success: true,
+      message: 'Batch processing completed successfully',
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Batch processing failed:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 module.exports = router;

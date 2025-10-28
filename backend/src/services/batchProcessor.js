@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const winston = require('winston');
 const db = require('./database');
-const { callContractSplit } = require('./contractService');
+const { callContractSplit, callContractClaimTip } = require('./contractService');
 const { ethers } = require('ethers');
 
 const logger = winston.createLogger({
@@ -116,8 +116,23 @@ async function processPendingTips() {
     logger.info(`💰 Total tip amount to process: ${totalTipAmount} STEAK`);
     logger.info(`👥 Recipients: ${Object.keys(tipsByRecipient).length}`);
     
-    // Tips are handled off-chain via protocol wallet allowances
-    // No contract interaction needed for tip processing
+    // Signal claimable tip amounts to contract for each recipient
+    for (const recipientWallet in tipsByRecipient) {
+      const recipientData = tipsByRecipient[recipientWallet];
+      
+      for (const tip of recipientData.tips) {
+        try {
+          // Call contract.claimTip(recipient, amount, tipHash) to make tips claimable
+          logger.info(`📞 Signaling claimable tip to contract: ${tip.tip_amount} STEAK for ${tip.recipient_username} (${tip.cast_hash})`);
+          
+          // Call contract to make tip claimable
+          await callContractClaimTip(recipientWallet, tip.tip_amount, tip.cast_hash);
+          
+        } catch (error) {
+          logger.error(`❌ Failed to signal tip to contract:`, error);
+        }
+      }
+    }
     
     // Mark all tips as processed
     await client.query('BEGIN');
@@ -199,11 +214,11 @@ async function allocateDailyTipAllowances() {
       const stakePercent = parseFloat(staker.staked_amount) / parseFloat(total_staked);
       const dailyAllowance = dailyRewardPool * stakePercent;
       
-      // Set new daily allowance and reset tips sent for new day
+      // Add to running tip balance and reset daily tips counter
       await client.query(`
         UPDATE staking_positions 
         SET 
-          daily_allowance_start = $1,
+          daily_allowance_start = daily_allowance_start + $1,
           daily_tips_sent = 0,
           last_allowance_reset = CURRENT_DATE,
           total_rewards_earned = total_rewards_earned + $1,

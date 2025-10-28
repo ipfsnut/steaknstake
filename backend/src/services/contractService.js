@@ -42,8 +42,19 @@ const ERC20_ABI = [
   }
 ];
 
-// SteakNStake contract ABI (split and fund functions)
+// SteakNStake contract ABI (tip claiming functions)
 const STEAKNSTAKE_ABI = [
+  {
+    "inputs": [
+      {"internalType": "address", "name": "recipient", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"},
+      {"internalType": "bytes32", "name": "tipHash", "type": "bytes32"}
+    ],
+    "name": "claimTip",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
   {
     "inputs": [{"internalType": "uint256", "name": "rewardQuantity", "type": "uint256"}],
     "name": "split",
@@ -274,9 +285,74 @@ async function approveContractSpending(amount) {
   }
 }
 
+// Call the smart contract claimTip() function to make tips claimable
+async function callContractClaimTip(recipientAddress, tipAmountSteak, castHash) {
+  try {
+    logger.info(`🎁 Making tip claimable: ${tipAmountSteak} STEAK for ${recipientAddress}`);
+    
+    // Convert STEAK amount to wei (18 decimals)
+    const tipAmountWei = ethers.parseEther(tipAmountSteak.toString());
+    
+    // Convert cast hash to bytes32
+    const tipHash = ethers.id(castHash); // keccak256 hash of cast hash
+    
+    logger.info(`📊 Contract claimTip call:`, {
+      contractAddress: CONTRACTS.STEAKNSTAKE,
+      recipient: recipientAddress,
+      amount: tipAmountSteak,
+      amountWei: tipAmountWei.toString(),
+      castHash: castHash,
+      tipHash: tipHash
+    });
+    
+    // Get contract instance
+    const contract = getContract();
+    
+    // Estimate gas first
+    const gasEstimate = await contract.claimTip.estimateGas(recipientAddress, tipAmountWei, tipHash);
+    logger.info(`⛽ Estimated gas: ${gasEstimate.toString()}`);
+    
+    // Call claimTip function
+    const tx = await contract.claimTip(recipientAddress, tipAmountWei, tipHash, {
+      gasLimit: gasEstimate + BigInt(50000), // Add 50k gas buffer
+    });
+    
+    logger.info(`📝 ClaimTip transaction submitted: ${tx.hash}`);
+    
+    // Wait for confirmation
+    const receipt = await tx.wait();
+    
+    logger.info(`✅ ClaimTip transaction confirmed:`, {
+      hash: tx.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+      status: receipt.status
+    });
+    
+    return {
+      success: true,
+      transactionHash: tx.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString()
+    };
+    
+  } catch (error) {
+    logger.error('❌ Contract claimTip failed:', error);
+    
+    if (error.code === 'INSUFFICIENT_FUNDS') {
+      throw new Error('Insufficient ETH for gas fees in protocol wallet');
+    } else if (error.reason) {
+      throw new Error(`Contract error: ${error.reason}`);
+    } else {
+      throw new Error(`ClaimTip transaction failed: ${error.message}`);
+    }
+  }
+}
+
 module.exports = {
   callContractSplit,
   callFundContract,
+  callContractClaimTip,
   approveContractSpending,
   testContractConnection
 };

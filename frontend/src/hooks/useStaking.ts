@@ -85,7 +85,7 @@ export function useStaking(farcasterUser?: any) {
     }
   }, [hash, isConfirmed, isConfirming, error, refetchAllowance, refetchBalance, refetchStaked]);
 
-  // Update step based on allowance
+  // Always start with approve step so users can see and manage their allowance
   useEffect(() => {
     console.log('🔍 Allowance check:', {
       allowance: allowance?.toString(),
@@ -95,9 +95,9 @@ export function useStaking(farcasterUser?: any) {
       contracts: CONTRACTS
     });
     
-    if (allowance && allowance > BigInt(0)) {
-      setCurrentStep('stake');
-    } else {
+    // Always show approve step first so users can see their current allowance
+    // They can choose to update it or proceed to staking
+    if (currentStep !== 'completed') {
       setCurrentStep('approve');
     }
   }, [allowance, address]);
@@ -390,6 +390,22 @@ export function useStaking(farcasterUser?: any) {
     }
   };
 
+  // Function to proceed to staking step (when user has sufficient allowance)
+  const proceedToStaking = () => {
+    setCurrentStep('stake');
+  };
+
+  // Function to check if user can skip approval
+  const canSkipApproval = (stakeAmount: string) => {
+    if (!allowance || !stakeAmount) return false;
+    try {
+      const stakeAmountWei = parseEther(stakeAmount);
+      return allowance >= stakeAmountWei;
+    } catch {
+      return false;
+    }
+  };
+
   return {
     // State
     currentStep,
@@ -407,6 +423,7 @@ export function useStaking(farcasterUser?: any) {
     approveSteak,
     stakeTokens,
     unstakeTokens,
+    proceedToStaking,
     
     // Utils
     refetchData: () => {
@@ -414,6 +431,7 @@ export function useStaking(farcasterUser?: any) {
       refetchBalance();
       refetchStaked();
     },
+    canSkipApproval,
     clearError: () => setUserError(null),
     clearSuccess: () => setSuccessMessage(null)
   };

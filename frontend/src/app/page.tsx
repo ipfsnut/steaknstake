@@ -131,6 +131,8 @@ export default function HomePage() {
     approveSteak,
     stakeTokens,
     unstakeTokens,
+    proceedToStaking,
+    canSkipApproval,
     refetchData,
     clearError,
     clearSuccess

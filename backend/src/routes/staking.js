@@ -701,6 +701,143 @@ router.get('/sync-allowance/:address', async (req, res) => {
 console.log('🔍 STAKING ROUTE: All routes defined, exporting router...');
 console.log('🔍 STAKING ROUTE: Routes registered:', router.stack?.length || 'unknown');
 
+// POST /api/staking/webhook - Handle staking event webhooks from indexers
+router.post('/webhook', async (req, res) => {
+  try {
+    const { event, address, amount, transactionHash, blockNumber } = req.body;
+    
+    logger.info('🔗 Staking webhook received:', { event, address, amount, transactionHash });
+    
+    // Validate required fields
+    if (!event || !address) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: event, address'
+      });
+    }
+    
+    // Validate event type
+    if (!['Stake', 'Unstake'].includes(event)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid event type. Must be Stake or Unstake'
+      });
+    }
+    
+    const client = await db.getClient();
+    
+    try {
+      await client.query('BEGIN');
+      
+      // Find or create user
+      let userResult = await client.query(
+        'SELECT * FROM users WHERE wallet_address = $1',
+        [address.toLowerCase()]
+      );
+      
+      let user;
+      if (userResult.rows.length === 0) {
+        // Create new user
+        const newUserResult = await client.query(`
+          INSERT INTO users (wallet_address, created_at)
+          VALUES ($1, $2)
+          RETURNING *
+        `, [address.toLowerCase(), new Date()]);
+        user = newUserResult.rows[0];
+        logger.info('✅ Created new user for webhook:', { userId: user.id, address });
+      } else {
+        user = userResult.rows[0];
+      }
+      
+      // Get current on-chain stake amount to ensure accuracy
+      const { ethers } = require('ethers');
+      const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'https://mainnet.base.org');
+      const contractAddress = process.env.STEAKNSTAKE_CONTRACT_ADDRESS || '0xdA9BD5c259Ae90e99158f45f00238d1BaDb3694D';
+      
+      const contractABI = [
+        "function stakedAmount(address) view returns (uint256)"
+      ];
+      
+      const contract = new ethers.Contract(contractAddress, contractABI, provider);
+      const currentStakedWei = await contract.stakedAmount(address);
+      const currentStakedAmount = parseFloat(ethers.formatEther(currentStakedWei));
+      
+      logger.info('📊 Current on-chain stake:', { address, currentStakedAmount });
+      
+      // Update or create staking position with current on-chain amount
+      const positionResult = await client.query(
+        'SELECT * FROM staking_positions WHERE user_id = $1',
+        [user.id]
+      );
+      
+      if (positionResult.rows.length === 0) {
+        // Create new position
+        await client.query(`
+          INSERT INTO staking_positions (user_id, staked_amount, staked_at, updated_at)
+          VALUES ($1, $2, $3, $3)
+        `, [user.id, currentStakedAmount, new Date()]);
+        logger.info('✅ Created new staking position:', { userId: user.id, stakedAmount: currentStakedAmount });
+      } else {
+        // Update existing position
+        await client.query(`
+          UPDATE staking_positions 
+          SET 
+            staked_amount = $1,
+            updated_at = $2
+          WHERE user_id = $3
+        `, [currentStakedAmount, new Date(), user.id]);
+        logger.info('✅ Updated staking position:', { userId: user.id, stakedAmount: currentStakedAmount });
+      }
+      
+      // Record the transaction
+      if (amount && transactionHash) {
+        await client.query(`
+          INSERT INTO staking_transactions 
+          (user_id, transaction_type, amount, transaction_hash, block_number, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6)
+        `, [user.id, event.toUpperCase(), amount, transactionHash, blockNumber, new Date()]);
+        logger.info('✅ Recorded staking transaction:', { event, amount, transactionHash });
+      }
+      
+      await client.query('COMMIT');
+      
+      // Auto-refresh leaderboard cache after staking updates
+      try {
+        await client.query('SELECT refresh_leaderboard_cache()');
+        logger.info('✅ Leaderboard cache auto-refreshed');
+      } catch (cacheError) {
+        logger.warn('⚠️ Failed to auto-refresh leaderboard cache:', cacheError.message);
+      }
+      
+      client.release();
+      
+      res.json({
+        success: true,
+        message: 'Staking webhook processed successfully',
+        data: {
+          event,
+          address,
+          currentStakedAmount,
+          userId: user.id
+        }
+      });
+      
+    } catch (error) {
+      await client.query('ROLLBACK');
+      client.release();
+      throw error;
+    }
+    
+  } catch (error) {
+    logger.error('❌ Error processing staking webhook:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to process staking webhook',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router;
 
 console.log('✅ STAKING ROUTE: Module exported successfully!');

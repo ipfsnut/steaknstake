@@ -31,6 +31,93 @@ router.get('/db-test', async (req, res) => {
   }
 });
 
+// Sync staking position from contract for a specific address
+router.post('/sync-staking/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    console.log('🔄 Syncing staking position from contract for:', address);
+    
+    const { ethers } = require('ethers');
+    
+    // Contract setup
+    const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'https://mainnet.base.org');
+    const contractAddress = process.env.STEAKNSTAKE_CONTRACT_ADDRESS || '0xdA9BD5c259Ae90e99158f45f00238d1BaDb3694D';
+    
+    // Minimal ABI for reading stake amount
+    const contractABI = [
+      "function stakedAmount(address) view returns (uint256)"
+    ];
+    
+    const contract = new ethers.Contract(contractAddress, contractABI, provider);
+    
+    // Get current staked amount from contract
+    const stakedAmountWei = await contract.stakedAmount(address);
+    const stakedAmount = parseFloat(ethers.formatEther(stakedAmountWei));
+    
+    console.log(`📊 Contract shows ${stakedAmount} $STEAK staked for ${address}`);
+    
+    // Update database
+    const client = await db.getClient();
+    
+    // Find user
+    const userResult = await client.query(
+      'SELECT * FROM users WHERE wallet_address = $1',
+      [address.toLowerCase()]
+    );
+    
+    if (userResult.rows.length === 0) {
+      client.release();
+      return res.status(404).json({
+        success: false,
+        error: 'User not found in database'
+      });
+    }
+    
+    const user = userResult.rows[0];
+    
+    // Update or create staking position
+    const positionResult = await client.query(
+      'SELECT * FROM staking_positions WHERE user_id = $1',
+      [user.id]
+    );
+    
+    if (positionResult.rows.length === 0) {
+      // Create new position
+      await client.query(`
+        INSERT INTO staking_positions (user_id, staked_amount, staked_at, updated_at)
+        VALUES ($1, $2, $3, $3)
+      `, [user.id, stakedAmount, new Date()]);
+    } else {
+      // Update existing position
+      await client.query(`
+        UPDATE staking_positions 
+        SET 
+          staked_amount = $1,
+          updated_at = $2
+        WHERE user_id = $3
+      `, [stakedAmount, new Date(), user.id]);
+    }
+    
+    client.release();
+    
+    console.log('✅ Staking position synced successfully');
+    res.json({
+      success: true,
+      message: 'Staking position synced from contract',
+      walletAddress: address,
+      stakedAmount: stakedAmount
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to sync staking position:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Refresh leaderboard cache
 router.post('/refresh-leaderboard', async (req, res) => {
   try {

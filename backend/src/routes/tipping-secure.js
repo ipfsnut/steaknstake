@@ -132,14 +132,42 @@ router.post('/send-secure', async (req, res) => {
 
       let recipient;
       if (recipientResult.rows.length === 0) {
-        // Create recipient user (they'll need to connect wallet later to claim)
+        // Auto-register recipient by fetching their wallet address from Farcaster
+        let recipientWalletAddress = null;
+        
+        try {
+          logger.info('Fetching wallet address for recipient FID:', recipientFid);
+          const axios = require('axios');
+          const userResponse = await axios.get(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${recipientFid}`, {
+            headers: {
+              'accept': 'application/json',
+              'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC'
+            }
+          });
+          
+          if (userResponse.data?.users?.[0]?.verifications?.[0]) {
+            recipientWalletAddress = userResponse.data.users[0].verifications[0];
+            logger.info('Found wallet address for recipient:', { recipientFid, recipientWalletAddress });
+          } else {
+            logger.info('No verified wallet found for recipient FID:', recipientFid);
+          }
+        } catch (error) {
+          logger.error('Failed to fetch recipient wallet from Farcaster:', error.message);
+        }
+        
+        // Create recipient user with their wallet address (if found)
         const insertResult = await client.query(
           'INSERT INTO users (farcaster_fid, farcaster_username, wallet_address) VALUES ($1, $2, $3) RETURNING *',
-          [recipientFid, recipientUsername, null]
+          [recipientFid, recipientUsername, recipientWalletAddress]
         );
         recipient = insertResult.rows[0];
         
-        logger.info('Created new recipient user', { recipientFid, recipientUsername });
+        logger.info('Created new recipient user', { 
+          recipientFid, 
+          recipientUsername, 
+          hasWallet: !!recipientWalletAddress,
+          walletAddress: recipientWalletAddress 
+        });
       } else {
         recipient = recipientResult.rows[0];
       }

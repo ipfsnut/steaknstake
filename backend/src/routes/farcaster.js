@@ -256,7 +256,7 @@ async function handleCastCreated(castData) {
       resolvedUsername: recipientUsername
     });
     
-    // Process the actual tip through the tipping system
+    // Process the actual tip through our consolidated tipping API
     await processTipFromFarcaster({
       hash,
       tipperFid: author.fid,
@@ -279,138 +279,48 @@ async function processTipFromFarcaster(tipData) {
   logger.info('🔄 Starting tip processing:', { tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount });
   
   try {
-    const client = await db.getClient();
-    logger.info('✅ Database client acquired');
-    
-    // Find tipper by Farcaster FID
-    logger.info('🔍 Looking up tipper by FID:', tipperFid);
-    const tipperResult = await client.query(
-      'SELECT * FROM users WHERE farcaster_fid = $1',
-      [tipperFid]
-    );
-    
-    if (tipperResult.rows.length === 0) {
-      logger.warn(`Tip failed: Tipper FID ${tipperFid} (@${tipperUsername}) not found in database`);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Connect your wallet at steak.epicdylan.com first! Then use: @steaknstake [amount] $STEAK');
-      client.release();
-      return;
-    }
-    
-    const tipper = tipperResult.rows[0];
-    logger.info('✅ Tipper found:', { id: tipper.id, wallet: tipper.wallet_address });
-    
-    // CRITICAL: Prevent self-tipping (breaks the core mechanic)
-    if (tipperFid === recipientFid) {
-      logger.warn(`Tip failed: Self-tipping attempted. ${tipperUsername} tried to tip themselves ${tipAmount} $STEAK`);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'You cannot tip yourself! Tip allowances can only be given to others. 🥩');
-      client.release();
-      return;
-    }
-    
-    // Check daily allowance using new system
-    logger.info('🔍 Looking up staking position for wallet:', tipper.wallet_address.toLowerCase());
-    const positionResult = await client.query(
-      'SELECT sp.* FROM staking_positions sp JOIN users u ON sp.user_id = u.id WHERE u.wallet_address = $1',
-      [tipper.wallet_address.toLowerCase()]
-    );
-    
-    if (positionResult.rows.length === 0) {
-      logger.warn(`Tip failed: Tipper ${tipperUsername} not found in staking_positions`);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'You need to stake STEAK first via the SteakNStake miniapp!');
-      client.release();
-      return;
-    }
-    
-    const position = positionResult.rows[0];
-    const dailyAllowanceStart = parseFloat(position.daily_allowance_start) || 0;
-    const dailyTipsSent = parseFloat(position.daily_tips_sent) || 0;
-    const remainingBalance = dailyAllowanceStart - dailyTipsSent;
-    
-    logger.info(`💰 Daily allowance check: ${dailyAllowanceStart} start, ${dailyTipsSent} sent, ${remainingBalance} remaining`);
-    
-    if (remainingBalance < tipAmount) {
-      logger.warn(`Tip failed: Insufficient daily allowance. ${tipperUsername} has ${remainingBalance} remaining but tried to tip ${tipAmount}`);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, `Insufficient allowance! You have ${remainingBalance.toFixed(2)} $STEAK remaining today.`);
-      client.release();
-      return;
-    }
-    
-    try {
-      logger.info('🔄 Starting database transaction');
-      await client.query('BEGIN');
-      
-      // Update daily tips sent (don't touch contract until batch processing)
-      logger.info('💳 Updating daily tips sent for user:', tipper.id);
-      const updateResult = await client.query(`
-        UPDATE staking_positions 
-        SET 
-          daily_tips_sent = daily_tips_sent + $1,
-          updated_at = $2
-        WHERE user_id = (SELECT id FROM users WHERE wallet_address = $3)
-      `, [tipAmount, new Date(), tipper.wallet_address.toLowerCase()]);
-      
-      logger.info(`💳 Daily tips update: ${updateResult.rowCount} rows affected for wallet ${tipper.wallet_address}`);
-      
-      // Find recipient wallet address by FID
-      logger.info('🔍 Looking up recipient by FID:', recipientFid);
-      const recipientResult = await client.query(
-        'SELECT wallet_address FROM users WHERE farcaster_fid = $1',
-        [recipientFid]
-      );
-      
-      if (recipientResult.rows.length === 0) {
-        // Recipient hasn't connected wallet yet - create pending tip with FID only
-        logger.info(`Tip pending: @${recipientUsername} (FID: ${recipientFid}) hasn't connected wallet yet`);
-        
-        const tipResult = await client.query(`
-          INSERT INTO farcaster_tips 
-          (tipper_user_id, recipient_fid, recipient_username, tip_amount, cast_hash, cast_url, message, status)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING_WALLET')
-          RETURNING *
-        `, [
-          tipper.id,
-          recipientFid,
-          recipientUsername,
-          tipAmount,
-          hash,
-          `https://warpcast.com/~/conversations/${hash}`,
-          castText
-        ]);
-        
-        await postTipPending(hash, tipperUsername, recipientUsername, tipAmount);
-        
-      } else {
-        // Recipient has wallet - create claimable tip with wallet address
-        const recipientWallet = recipientResult.rows[0].wallet_address;
-        
-        const tipResult = await client.query(`
-          INSERT INTO farcaster_tips 
-          (tipper_user_id, tipper_wallet_address, recipient_fid, recipient_username, recipient_wallet_address, tip_amount, cast_hash, cast_url, message, status)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'CLAIMABLE')
-          RETURNING *
-        `, [
-          tipper.id,
-          tipper.wallet_address,
-          recipientFid,
-          recipientUsername,
-          recipientWallet,
-          tipAmount,
-          hash,
-          `https://warpcast.com/~/conversations/${hash}`,
-          castText
-        ]);
-        
-        logger.info(`✅ Tip processed successfully: ${tipAmount} $STEAK from @${tipperUsername} to @${recipientUsername} (${recipientWallet})`);
-        await postTipSuccess(hash, tipperUsername, recipientUsername, tipAmount, tipResult.rows[0].id);
+    // First, get the tipper's wallet address from their FID
+    const tipperResponse = await axios.get(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${tipperFid}`, {
+      headers: {
+        'accept': 'application/json',
+        'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC'
       }
-      
-      await client.query('COMMIT');
-      
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
+    });
+
+    if (!tipperResponse.data?.users?.[0]?.verifications?.[0]) {
+      logger.warn(`Tip failed: No verified wallet found for tipper FID ${tipperFid}`);
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Connect your wallet at steak.epicdylan.com first! Then use: @steaknstake [amount] $STEAK');
+      return;
+    }
+
+    const tipperWalletAddress = tipperResponse.data.users[0].verifications[0];
+
+    // Call our consolidated tipping API
+    const tipRequest = {
+      tipperWalletAddress,
+      recipientFid,
+      recipientUsername,
+      tipAmount,
+      castHash: hash,
+      castUrl: `https://warpcast.com/~/conversations/${hash}`,
+      message: castText
+    };
+
+    logger.info('🔄 Calling consolidated tipping API:', tipRequest);
+
+    const apiResponse = await axios.post('http://localhost:10000/api/tipping/send', tipRequest, {
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    if (apiResponse.data.success) {
+      logger.info(`✅ Tip processed successfully via API: ${tipAmount} $STEAK from @${tipperUsername} to @${recipientUsername}`);
+      await postTipSuccess(hash, tipperUsername, recipientUsername, tipAmount, apiResponse.data.tip.id);
+    } else {
+      logger.error(`❌ API tip failed:`, apiResponse.data.error);
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, apiResponse.data.error || 'Processing error - please try again!');
     }
     
   } catch (error) {
@@ -419,7 +329,14 @@ async function processTipFromFarcaster(tipData) {
       stack: error.stack,
       tipData: { tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount }
     });
-    await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Processing error - please try again!');
+    
+    // Parse API error for better user message
+    let errorMessage = 'Processing error - please try again!';
+    if (error.response?.data?.error) {
+      errorMessage = error.response.data.error;
+    }
+    
+    await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, errorMessage);
   }
 }
 

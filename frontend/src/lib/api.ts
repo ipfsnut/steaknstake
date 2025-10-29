@@ -8,7 +8,7 @@ if (!process.env.NEXT_PUBLIC_API_URL) {
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  // No timeout - don't kick users out of their own data
   headers: {
     'Content-Type': 'application/json',
   }
@@ -18,7 +18,15 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('API Error:', error);
+    if (error.code === 'ECONNABORTED') {
+      console.error('🕐 API Timeout - backend may be sleeping, try again in 30s:', error.message);
+    } else if (error.response?.status >= 500) {
+      console.error('🔴 Backend Server Error:', error.response?.data || error.message);
+    } else if (!error.response) {
+      console.error('🔌 Network Error - backend unreachable:', error.message);
+    } else {
+      console.error('❌ API Error:', error.response?.data || error.message);
+    }
     return Promise.reject(error);
   }
 );

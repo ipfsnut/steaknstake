@@ -180,11 +180,23 @@ export default function HomePage() {
   }, [isReady, isMiniApp, user]);
 
   // Fetch unclaimed tips for the user
+  // Cache for unclaimed tips data
+  const [tipsCache, setTipsCache] = useState<{[fid: number]: {amount: number, tips: any[]}}>();
+  
   const fetchUnclaimedTips = async () => {
     if (!address || !user?.fid) return;
     
+    // Check cache first
+    const cached = tipsCache?.[user.fid];
+    if (cached) {
+      console.log('💾 Using cached unclaimed tips for FID:', user.fid);
+      setUnclaimedAmount(cached.amount);
+      setUnclaimedTips(cached.tips);
+      return;
+    }
+    
     try {
-      console.log('🔍 Fetching unclaimed tips...', { address, fid: user.fid });
+      console.log('🔍 Fetching fresh unclaimed tips...', { address, fid: user.fid });
       
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/farcaster/user/${user.fid}`);
       if (response.ok) {
@@ -195,7 +207,10 @@ export default function HomePage() {
         setUnclaimedAmount(unclaimedAmount);
         setUnclaimedTips(recentTips);
         
-        console.log('📨 Unclaimed tips:', { unclaimedAmount, count: recentTips.length });
+        // Cache the result
+        setTipsCache(prev => ({...prev, [user.fid]: {amount: unclaimedAmount, tips: recentTips}}));
+        
+        console.log('📨 Unclaimed tips fetched:', { unclaimedAmount, count: recentTips.length });
       }
     } catch (error) {
       console.error('❌ Error fetching unclaimed tips:', error);
@@ -254,36 +269,60 @@ export default function HomePage() {
     setLoading(false);
   }, []);
 
-  // Fetch user position from backend when wallet connects
+  // Cache for user position data
+  const [positionCache, setPositionCache] = useState<{[address: string]: any}>({});
+  const [isLoadingPosition, setIsLoadingPosition] = useState(false);
+  
+  // Load cached data on wallet connect, fetch fresh data only if no cache
   useEffect(() => {
-    const fetchUserPosition = async () => {
-      if (address) {
-        try {
-          console.log('🔍 Fetching user position for address:', address);
-          const response = await stakingApi.getPosition(address);
-          console.log('📡 Backend response:', response.data);
-          
-          if (response.data.success) {
-            console.log('✅ User position fetched successfully:', response.data.data);
-            setBackendUserPosition(response.data.data);
-          } else {
-            console.log('❌ Backend returned failure:', response.data);
-            setBackendUserPosition(null);
-          }
-        } catch (error) {
-          console.error('❌ Error fetching user position from backend:', error);
-          console.error('Error details:', {
-            message: (error as any)?.message,
-            code: (error as any)?.code,
-            response: (error as any)?.response?.data
-          });
+    if (address) {
+      // Load from cache first if available
+      const cached = positionCache[address];
+      if (cached) {
+        console.log('💾 Using cached user position for:', address);
+        setBackendUserPosition(cached);
+      } else {
+        // Only fetch if no cache
+        fetchUserPositionFresh();
+      }
+    }
+  }, [address, positionCache]);
+  
+  // Function to fetch fresh user position data
+  const fetchUserPositionFresh = async () => {
+    if (!address || isLoadingPosition) return;
+    
+    setIsLoadingPosition(true);
+    try {
+      console.log('🔍 Fetching fresh user position for address:', address);
+      const response = await stakingApi.getPosition(address);
+      console.log('📡 Backend response:', response.data);
+      
+      if (response.data.success) {
+        console.log('✅ User position fetched successfully:', response.data.data);
+        setBackendUserPosition(response.data.data);
+        // Cache the result
+        setPositionCache(prev => ({...prev, [address]: response.data.data}));
+      } else {
+        console.log('❌ Backend returned failure:', response.data);
+        if (!positionCache[address]) {
           setBackendUserPosition(null);
         }
       }
-    };
-
-    fetchUserPosition();
-  }, [address]);
+    } catch (error) {
+      console.error('❌ Error fetching user position from backend:', error);
+      console.error('Error details:', {
+        message: (error as any)?.message,
+        code: (error as any)?.code,
+        response: (error as any)?.response?.data
+      });
+      if (!positionCache[address]) {
+        setBackendUserPosition(null);
+      }
+    } finally {
+      setIsLoadingPosition(false);
+    }
+  };
 
   // Update all stats when contract data changes
   useEffect(() => {
@@ -347,8 +386,8 @@ export default function HomePage() {
       tipsAvailable: userClaimableTips
     });
 
-    // Fetch real staker count from backend stats
-    const fetchStakerCount = async () => {
+    // Only fetch stats if we don't have them cached
+    const fetchStatsIfNeeded = async () => {
       try {
         const statsResponse = await stakingApi.getStats();
         if (statsResponse.data.success && statsResponse.data.data) {
@@ -364,7 +403,10 @@ export default function HomePage() {
       }
     };
     
-    fetchStakerCount();
+    // Only fetch once, not on every contract update
+    if (stakingStats.totalStakers === 0) {
+      fetchStatsIfNeeded();
+    }
     
     // Create leaderboard with real user if they have stakes
     const leaderboard = [];
@@ -484,10 +526,27 @@ export default function HomePage() {
   const refreshData = async () => {
     setLoading(true);
     
-    // Refresh contract data - the useEffect will handle updating the UI
-    refetchData();
-    
-    setLoading(false);
+    try {
+      // Clear cache and fetch fresh data
+      if (address) {
+        setPositionCache(prev => ({...prev, [address]: undefined}));
+        await fetchUserPositionFresh();
+      }
+      
+      // Refresh contract data
+      refetchData();
+      
+      // Refresh unclaimed tips
+      if (user?.fid) {
+        await fetchUnclaimedTips();
+      }
+      
+      console.log('🔄 Data refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error refreshing data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Function to handle tip sending via backend API

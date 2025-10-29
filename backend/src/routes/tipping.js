@@ -14,21 +14,7 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
-// Contract configuration
-const STEAKNSTAKE_CONTRACT_ADDRESS = process.env.STEAKNSTAKE_CONTRACT_ADDRESS;
-const STEAKNSTAKE_ABI = [
-  {
-    "inputs": [{"name": "user", "type": "address"}],
-    "name": "getAvailableTipAllowance",
-    "outputs": [{"name": "", "type": "uint256"}],
-    "stateMutability": "view",
-    "type": "function"
-  }
-];
-
-// Initialize ethers provider and contract
-const provider = new ethers.JsonRpcProvider(process.env.BASE_RPC_URL);
-const steakNStakeContract = new ethers.Contract(STEAKNSTAKE_CONTRACT_ADDRESS, STEAKNSTAKE_ABI, provider);
+// Note: Contract interactions are handled by batch processor, not during tipping
 
 // POST /api/tipping/send - Send a tip via Farcaster
 router.post('/send', async (req, res) => {
@@ -119,7 +105,6 @@ router.post('/send', async (req, res) => {
       }
       
       const tipper = tipperResult.rows[0];
-      const actualTipperWallet = tipper.wallet_address; // Use wallet from database record
       
       // CRITICAL: Prevent self-tipping
       if (tipper.farcaster_fid && parseInt(tipper.farcaster_fid) === parseInt(recipientFid)) {
@@ -136,7 +121,6 @@ router.post('/send', async (req, res) => {
         [recipientFid]
       );
 
-      let recipient;
       if (recipientResult.rows.length === 0) {
         // Auto-register recipient by fetching their wallet address from Farcaster
         let recipientWalletAddress = null;
@@ -171,19 +155,16 @@ router.post('/send', async (req, res) => {
         }
 
         // Create recipient user with their wallet address
-        const insertResult = await client.query(
+        await client.query(
           'INSERT INTO users (farcaster_fid, farcaster_username, wallet_address) VALUES ($1, $2, $3) RETURNING *',
           [recipientFid, recipientUsername, recipientWalletAddress.toLowerCase()]
         );
-        recipient = insertResult.rows[0];
         
         logger.info('Created new recipient user', { 
           recipientFid, 
           recipientUsername, 
           walletAddress: recipientWalletAddress 
         });
-      } else {
-        recipient = recipientResult.rows[0];
       }
 
       // Check tip amount limits
@@ -206,28 +187,39 @@ router.post('/send', async (req, res) => {
         });
       }
 
-      // Check tipper's tip allowance on-chain
-      let availableAllowance;
-      try {
-        const allowanceWei = await steakNStakeContract.getAvailableTipAllowance(actualTipperWallet);
-        availableAllowance = parseFloat(ethers.formatEther(allowanceWei));
-      } catch (contractError) {
-        logger.error('Error checking tip allowance:', contractError);
+      // Check tipper's database allocation instead of contract allowance
+      const positionResult = await client.query(
+        'SELECT daily_allowance_start, daily_tips_sent FROM staking_positions WHERE user_id = $1',
+        [tipper.id]
+      );
+      
+      if (positionResult.rows.length === 0) {
         await client.query('ROLLBACK');
-        return res.status(500).json({
+        return res.status(400).json({
           success: false,
-          error: 'Unable to check tip allowance. Please try again.'
+          error: 'You must stake STEAK tokens to earn tip allowances. Visit steak.epicdylan.com to get started!'
         });
       }
+      
+      const position = positionResult.rows[0];
+      const dailyAllowanceStart = parseFloat(position.daily_allowance_start) || 0;
+      const dailyTipsSent = parseFloat(position.daily_tips_sent) || 0;
+      const availableAllowance = dailyAllowanceStart - dailyTipsSent;
 
       if (availableAllowance < tipAmount) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           success: false,
-          error: `Insufficient tip allowance. Available: ${availableAllowance.toFixed(2)} STEAK, Required: ${tipAmount} STEAK`
+          error: `Insufficient tip balance. Available: ${availableAllowance.toFixed(2)} STEAK, Required: ${tipAmount} STEAK`
         });
       }
       
+      // Update tipper's daily tips sent
+      await client.query(
+        'UPDATE staking_positions SET daily_tips_sent = daily_tips_sent + $1 WHERE user_id = $2',
+        [tipAmount, tipper.id]
+      );
+
       // Store tip in database
       const tipResult = await client.query(
         `INSERT INTO farcaster_tips (

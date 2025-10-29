@@ -1,4 +1,4 @@
-console.log('🔍 STAKING ROUTE: Starting to load staking.js...');
+console.log('🔍 STAKING ROUTE: Starting to load staking.js v2...');
 
 const express = require('express');
 const router = express.Router();

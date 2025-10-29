@@ -94,3 +94,6 @@ backend/scripts/find-*.js
 backend/scripts/test-*.js
 backend/scripts/deploy-*.js
 backend/scripts/setup-*.js
+
+# All scripts directory (contains database URLs and sensitive data)
+scripts/

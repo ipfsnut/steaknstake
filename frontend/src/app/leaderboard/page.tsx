@@ -5,7 +5,6 @@ import { useReadContract } from 'wagmi';
 import { formatEther } from 'viem';
 import { CONTRACTS, STEAKNSTAKE_ABI } from '@/lib/contracts';
 import { stakingApi } from '@/lib/api';
-import { getLeaderboardData, getPlatformStats, checkSubgraphHealth } from '@/lib/subgraph';
 
 interface EffectiveStake {
   effectiveAmount: number;
@@ -43,6 +42,8 @@ interface LeaderboardStats {
 }
 
 export default function LeaderboardPage() {
+  console.log('🏆 LeaderboardPage component mounted');
+  
   const [players, setPlayers] = useState<Player[]>([]);
   const [stats, setStats] = useState<LeaderboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,62 +62,28 @@ export default function LeaderboardPage() {
       try {
         setLoading(true);
         
-        // Skip subgraph for now (not configured)
-        const isSubgraphHealthy = false; // await checkSubgraphHealth();
-        if (isSubgraphHealthy) {
-          console.log('📊 Using subgraph for leaderboard data');
-          setUsingSubgraph(true);
-          
-          const [subgraphLeaderboard, subgraphStats] = await Promise.all([
-            getLeaderboardData(10),
-            getPlatformStats()
-          ]);
-          
-          if (subgraphLeaderboard.length > 0) {
-            // Convert subgraph data to frontend format
-            const convertedPlayers = subgraphLeaderboard.map((entry, index) => ({
-              rank: index + 1,
-              address: entry.user.id,
-              stakedAmount: parseFloat(formatEther(BigInt(entry.user.stakedAmount))).toLocaleString(),
-              stakedAmountRaw: parseFloat(formatEther(BigInt(entry.user.stakedAmount))),
-              lockExpiry: '',
-              stakeDate: new Date(parseInt(entry.user.firstStakeTimestamp) * 1000).toISOString(),
-              totalEarned: parseFloat(formatEther(BigInt(entry.user.tipsReceived))).toLocaleString(),
-              isTopTen: index < 10
-            }));
-            
-            setPlayers(convertedPlayers);
-            
-            if (subgraphStats) {
-              setStats({
-                totalPlayers: subgraphStats.totalUsers,
-                activeStakers: subgraphStats.totalUsers,
-                earningPlayers: subgraphStats.totalUsers,
-                totalStaked: parseFloat(formatEther(BigInt(subgraphStats.totalStaked))).toLocaleString()
-              });
-            }
-            
-            return; // Successfully used subgraph
-          }
-        }
-        
-        // Fallback to backend API first, then contract
-        console.log('📊 Falling back to backend data');
+        // Use backend API as primary data source
+        console.log('📊 Fetching leaderboard from backend API');
         setUsingSubgraph(false);
         
-        // Try backend API first
         try {
+          console.log('🔍 Calling stakingApi.getLeaderboard()...');
           const response = await stakingApi.getLeaderboard();
+          console.log('📡 Leaderboard API response:', response.data);
+          
           if (response.data.success && response.data.data.leaderboard.length > 0) {
+            console.log('✅ Setting leaderboard players:', response.data.data.leaderboard.length, 'players');
             setPlayers(response.data.data.leaderboard);
             setStats(response.data.data.stats);
             return; // Successfully used backend API
+          } else {
+            console.log('❌ Leaderboard API returned empty or unsuccessful response');
           }
         } catch (apiError) {
-          console.log('Backend API not available, showing contract stats only');
+          console.log('❌ Backend API error:', apiError);
         }
 
-        // Final fallback to contract data only if backend fails
+        // Fallback to contract data only if backend fails
         if (contractTotalStaked) {
           const totalStaked = formatEther(contractTotalStaked);
           setStats({

@@ -68,7 +68,7 @@ export const tippingApi = {
     castHash?: string;
     castUrl?: string;
     message?: string;
-  }) => api.post('/api/tipping/send-secure', data),
+  }) => api.post('/api/tipping/send', data),
   getReceivedTips: (fid: number, limit?: number, offset?: number) => {
     const params = new URLSearchParams();
     if (limit) params.append('limit', limit.toString());

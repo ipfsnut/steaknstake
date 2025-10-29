@@ -3,6 +3,7 @@ const router = express.Router();
 const db = require('../services/database');
 const winston = require('winston');
 const { generateFarcasterTipHash, generateDirectTipHash, isValidTipHash } = require('../utils/tipHash');
+const { ethers } = require('ethers');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -12,6 +13,22 @@ const logger = winston.createLogger({
   ),
   transports: [new winston.transports.Console()]
 });
+
+// Contract configuration
+const STEAKNSTAKE_CONTRACT_ADDRESS = process.env.STEAKNSTAKE_CONTRACT_ADDRESS;
+const STEAKNSTAKE_ABI = [
+  {
+    "inputs": [{"name": "user", "type": "address"}],
+    "name": "getAvailableTipAllowance",
+    "outputs": [{"name": "", "type": "uint256"}],
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
+// Initialize ethers provider and contract
+const provider = new ethers.JsonRpcProvider(process.env.BASE_RPC_URL);
+const steakNStakeContract = new ethers.Contract(STEAKNSTAKE_CONTRACT_ADDRESS, STEAKNSTAKE_ABI, provider);
 
 // POST /api/tipping/send - Send a tip via Farcaster
 router.post('/send', async (req, res) => {
@@ -26,13 +43,22 @@ router.post('/send', async (req, res) => {
       message 
     } = req.body;
     
+    // Validate required parameters
     if (!tipperWalletAddress || !recipientFid || !tipAmount || tipAmount <= 0) {
       return res.status(400).json({
         success: false,
         error: 'Tipper wallet, recipient FID, and positive tip amount required'
       });
     }
-    
+
+    // Validate wallet address format
+    if (!ethers.isAddress(tipperWalletAddress)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid tipper wallet address'
+      });
+    }
+
     const client = await db.getClient();
     
     try {
@@ -48,14 +74,13 @@ router.post('/send', async (req, res) => {
         await client.query('ROLLBACK');
         return res.status(404).json({
           success: false,
-          error: 'Tipper not found'
+          error: 'Tipper not found. Please connect your wallet first.'
         });
       }
       
       const tipper = tipperResult.rows[0];
       
-      // CRITICAL: Prevent self-tipping via API (check if tipper FID matches recipient FID)
-      // Force deployment - 2025-10-26T20:20:30Z
+      // CRITICAL: Prevent self-tipping
       if (tipper.farcaster_fid && parseInt(tipper.farcaster_fid) === parseInt(recipientFid)) {
         await client.query('ROLLBACK');
         return res.status(400).json({
@@ -63,90 +88,158 @@ router.post('/send', async (req, res) => {
           error: 'You cannot tip yourself! Tip allowances can only be given to others.'
         });
       }
-      
-      // Get tipper's staking position and available tip balance
-      const positionResult = await client.query(
-        'SELECT * FROM staking_positions WHERE user_id = $1',
-        [tipper.id]
+
+      // Get or create recipient user with auto-registration
+      let recipientResult = await client.query(
+        'SELECT * FROM users WHERE farcaster_fid = $1',
+        [recipientFid]
       );
+
+      let recipient;
+      if (recipientResult.rows.length === 0) {
+        // Auto-register recipient by fetching their wallet address from Farcaster
+        let recipientWalletAddress = null;
+        
+        try {
+          logger.info('Fetching wallet address for recipient FID:', recipientFid);
+          const axios = require('axios');
+          const userResponse = await axios.get(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${recipientFid}`, {
+            headers: {
+              'accept': 'application/json',
+              'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC'
+            }
+          });
+          
+          if (userResponse.data?.users?.[0]?.verifications?.[0]) {
+            recipientWalletAddress = userResponse.data.users[0].verifications[0];
+            logger.info('Found wallet address for recipient:', { recipientFid, recipientWalletAddress });
+          } else {
+            logger.info('No verified wallet found for recipient FID:', recipientFid);
+          }
+        } catch (error) {
+          logger.error('Failed to fetch recipient wallet from Farcaster:', error.message);
+        }
+        
+        // Only create user if we found their wallet address
+        if (!recipientWalletAddress) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            success: false,
+            error: `Recipient @${recipientUsername} needs to connect their wallet at steak.epicdylan.com first to receive tips.`
+          });
+        }
+
+        // Create recipient user with their wallet address
+        const insertResult = await client.query(
+          'INSERT INTO users (farcaster_fid, farcaster_username, wallet_address) VALUES ($1, $2, $3) RETURNING *',
+          [recipientFid, recipientUsername, recipientWalletAddress.toLowerCase()]
+        );
+        recipient = insertResult.rows[0];
+        
+        logger.info('Created new recipient user', { 
+          recipientFid, 
+          recipientUsername, 
+          walletAddress: recipientWalletAddress 
+        });
+      } else {
+        recipient = recipientResult.rows[0];
+      }
+
+      // Check tip amount limits
+      const minTip = 0.1; // 0.1 STEAK minimum
+      const maxTip = 1000; // 1000 STEAK maximum
       
-      if (positionResult.rows.length === 0 || parseFloat(positionResult.rows[0].available_tip_balance) < tipAmount) {
+      if (tipAmount < minTip) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           success: false,
-          error: 'Insufficient tip balance'
+          error: `Minimum tip amount is ${minTip} STEAK`
         });
       }
       
-      // Check min tip amount
-      const settingsResult = await client.query(
-        'SELECT setting_key, setting_value FROM system_settings WHERE setting_key = $1',
-        ['min_tip_amount']
-      );
-      
-      const settings = {};
-      settingsResult.rows.forEach(row => {
-        settings[row.setting_key] = parseFloat(row.setting_value);
-      });
-      
-      if (tipAmount < (settings.min_tip_amount || 0.1)) {
+      if (tipAmount > maxTip) {
         await client.query('ROLLBACK');
         return res.status(400).json({
           success: false,
-          error: `Minimum tip amount is ${settings.min_tip_amount || 0.1} STEAK`
+          error: `Maximum tip amount is ${maxTip} STEAK`
+        });
+      }
+
+      // Check tipper's tip allowance on-chain
+      let availableAllowance;
+      try {
+        const allowanceWei = await steakNStakeContract.getAvailableTipAllowance(tipperWalletAddress);
+        availableAllowance = parseFloat(ethers.formatEther(allowanceWei));
+      } catch (contractError) {
+        logger.error('Error checking tip allowance:', contractError);
+        await client.query('ROLLBACK');
+        return res.status(500).json({
+          success: false,
+          error: 'Unable to check tip allowance. Please try again.'
+        });
+      }
+
+      if (availableAllowance < tipAmount) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          error: `Insufficient tip allowance. Available: ${availableAllowance.toFixed(2)} STEAK, Required: ${tipAmount} STEAK`
         });
       }
       
-      // No max tip limit - users can tip their entire balance if they want
-      
-      // Deduct tip amount from tipper's available balance
-      await client.query(`
-        UPDATE staking_positions 
-        SET 
-          available_tip_balance = available_tip_balance - $1,
-          updated_at = $2
-        WHERE user_id = $3
-      `, [tipAmount, new Date(), tipper.id]);
-      
-      // Create tip record
-      const tipResult = await client.query(`
-        INSERT INTO farcaster_tips 
-        (tipper_user_id, recipient_fid, recipient_username, tip_amount, cast_hash, cast_url, message, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, 'SENT')
-        RETURNING *
-      `, [tipper.id, recipientFid, recipientUsername, tipAmount, castHash, castUrl, message]);
-      
-      await client.query('COMMIT');
-      
-      res.json({
-        success: true,
-        message: 'Tip sent successfully',
-        data: {
-          tipId: tipResult.rows[0].id,
-          tipAmount,
+      // Store tip in database
+      const tipResult = await client.query(
+        `INSERT INTO farcaster_tips (
+          tipper_user_id, recipient_fid, recipient_username, tip_amount, 
+          cast_hash, cast_url, message, status
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'ALLOCATED') RETURNING *`,
+        [
+          tipper.id,
           recipientFid,
           recipientUsername,
+          tipAmount,
           castHash,
-          message
+          castUrl,
+          message || ''
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      logger.info('Tip sent successfully', {
+        tipId: tipResult.rows[0].id,
+        tipper: tipperWalletAddress,
+        recipientFid,
+        amount: tipAmount
+      });
+
+      res.json({
+        success: true,
+        tip: {
+          id: tipResult.rows[0].id,
+          amount: tipAmount,
+          recipient: {
+            fid: recipientFid,
+            username: recipientUsername
+          },
+          castHash,
+          status: 'ALLOCATED',
+          message: 'Tip sent successfully!'
         }
       });
-      
+
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
     } finally {
       client.release();
     }
-    
+
   } catch (error) {
-    logger.error('Error sending tip:', {
-      error: error.message,
-      stack: error.stack,
-      requestBody: req.body
-    });
+    logger.error('Error in send:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to send tip',
+      error: 'Internal server error',
       details: error.message
     });
   }

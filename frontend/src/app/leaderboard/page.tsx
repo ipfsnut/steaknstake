@@ -70,6 +70,13 @@ export default function LeaderboardPage() {
           console.log('🔍 Calling stakingApi.getLeaderboard()...');
           const response = await stakingApi.getLeaderboard();
           console.log('📡 Leaderboard API response:', response.data);
+          console.log('📡 Leaderboard data structure:', {
+            success: response.data.success,
+            dataExists: !!response.data.data,
+            leaderboardExists: !!response.data.data?.leaderboard,
+            leaderboardType: typeof response.data.data?.leaderboard,
+            leaderboardLength: response.data.data?.leaderboard?.length
+          });
           
           if (response.data.success && response.data.data.leaderboard.length > 0) {
             console.log('✅ Setting leaderboard players:', response.data.data.leaderboard.length, 'players');

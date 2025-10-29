@@ -298,22 +298,30 @@ export default function LeaderboardPage() {
                         <div className="flex items-center">
                           {player.avatarUrl ? (
                             <img
-                              className="h-10 w-10 rounded-full mr-3 object-cover"
+                              className="h-10 w-10 rounded-full mr-3 object-cover flex-shrink-0"
                               src={player.avatarUrl}
                               alt={`${player.ensName || player.farcasterUsername || 'User'}'s avatar`}
+                              style={{
+                                width: '40px',
+                                height: '40px',
+                                minWidth: '40px',
+                                minHeight: '40px',
+                                maxWidth: '40px',
+                                maxHeight: '40px'
+                              }}
                               onError={(e) => {
                                 // Hide broken images
                                 (e.target as HTMLImageElement).style.display = 'none';
                               }}
                             />
                           ) : player.farcasterUsername ? (
-                            <div className="h-10 w-10 rounded-full mr-3 bg-purple-100 flex items-center justify-center">
+                            <div className="h-10 w-10 rounded-full mr-3 bg-purple-100 flex items-center justify-center flex-shrink-0" style={{width: '40px', height: '40px', minWidth: '40px', minHeight: '40px'}}>
                               <span className="text-purple-600 font-bold text-sm">
                                 {player.farcasterUsername.charAt(0).toUpperCase()}
                               </span>
                             </div>
                           ) : (
-                            <div className="h-10 w-10 rounded-full mr-3 bg-gray-100 flex items-center justify-center">
+                            <div className="h-10 w-10 rounded-full mr-3 bg-gray-100 flex items-center justify-center flex-shrink-0" style={{width: '40px', height: '40px', minWidth: '40px', minHeight: '40px'}}>
                               <span className="text-gray-600 font-bold text-sm">
                                 {player.address.slice(2, 4).toUpperCase()}
                               </span>

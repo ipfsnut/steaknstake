@@ -61,8 +61,8 @@ export default function LeaderboardPage() {
       try {
         setLoading(true);
         
-        // First try subgraph
-        const isSubgraphHealthy = await checkSubgraphHealth();
+        // Skip subgraph for now (not configured)
+        const isSubgraphHealthy = false; // await checkSubgraphHealth();
         if (isSubgraphHealthy) {
           console.log('📊 Using subgraph for leaderboard data');
           setUsingSubgraph(true);

@@ -31,6 +31,37 @@ router.get('/db-test', async (req, res) => {
   }
 });
 
+// Refresh leaderboard cache
+router.post('/refresh-leaderboard', async (req, res) => {
+  try {
+    console.log('🔄 Refreshing leaderboard cache...');
+    
+    const client = await db.getClient();
+    
+    // Call the refresh function
+    await client.query('SELECT refresh_leaderboard_cache()');
+    
+    // Get updated count
+    const countResult = await client.query('SELECT COUNT(*) as count FROM leaderboard_cache');
+    client.release();
+    
+    console.log('✅ Leaderboard cache refreshed successfully');
+    res.json({
+      success: true,
+      message: 'Leaderboard cache refreshed',
+      cachedEntries: parseInt(countResult.rows[0].count)
+    });
+    
+  } catch (error) {
+    console.error('❌ Failed to refresh leaderboard cache:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Test user lookup
 router.get('/user-test/:address', async (req, res) => {
   try {

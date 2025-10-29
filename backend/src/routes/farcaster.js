@@ -276,10 +276,14 @@ async function handleCastCreated(castData) {
 async function processTipFromFarcaster(tipData) {
   const { hash, tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount, castText } = tipData;
   
+  logger.info('🔄 Starting tip processing:', { tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount });
+  
   try {
     const client = await db.getClient();
+    logger.info('✅ Database client acquired');
     
     // Find tipper by Farcaster FID
+    logger.info('🔍 Looking up tipper by FID:', tipperFid);
     const tipperResult = await client.query(
       'SELECT * FROM users WHERE farcaster_fid = $1',
       [tipperFid]
@@ -293,6 +297,7 @@ async function processTipFromFarcaster(tipData) {
     }
     
     const tipper = tipperResult.rows[0];
+    logger.info('✅ Tipper found:', { id: tipper.id, wallet: tipper.wallet_address });
     
     // CRITICAL: Prevent self-tipping (breaks the core mechanic)
     if (tipperFid === recipientFid) {
@@ -303,6 +308,7 @@ async function processTipFromFarcaster(tipData) {
     }
     
     // Check daily allowance using new system
+    logger.info('🔍 Looking up staking position for wallet:', tipper.wallet_address.toLowerCase());
     const positionResult = await client.query(
       'SELECT sp.* FROM staking_positions sp JOIN users u ON sp.user_id = u.id WHERE u.wallet_address = $1',
       [tipper.wallet_address.toLowerCase()]
@@ -330,9 +336,11 @@ async function processTipFromFarcaster(tipData) {
     }
     
     try {
+      logger.info('🔄 Starting database transaction');
       await client.query('BEGIN');
       
       // Update daily tips sent (don't touch contract until batch processing)
+      logger.info('💳 Updating daily tips sent for user:', tipper.id);
       const updateResult = await client.query(`
         UPDATE staking_positions 
         SET 
@@ -344,6 +352,7 @@ async function processTipFromFarcaster(tipData) {
       logger.info(`💳 Daily tips update: ${updateResult.rowCount} rows affected for wallet ${tipper.wallet_address}`);
       
       // Find recipient wallet address by FID
+      logger.info('🔍 Looking up recipient by FID:', recipientFid);
       const recipientResult = await client.query(
         'SELECT wallet_address FROM users WHERE farcaster_fid = $1',
         [recipientFid]
@@ -405,7 +414,11 @@ async function processTipFromFarcaster(tipData) {
     }
     
   } catch (error) {
-    logger.error('Error processing Farcaster tip:', error);
+    logger.error('❌ Error processing Farcaster tip:', {
+      error: error.message,
+      stack: error.stack,
+      tipData: { tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount }
+    });
     await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Processing error - please try again!');
   }
 }

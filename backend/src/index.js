@@ -56,7 +56,7 @@ const { startBatchProcessor } = require('./services/batchProcessor');
 // Import routes with error handling
 console.log('🔍 INDEX: About to import routes...');
 
-let stakingRoutes, stakingMinimalRoutes, tippingRoutes, tippingSecureRoutes, userRoutes, farcasterRoutes, debugRoutes, apiDebugRoutes;
+let stakingRoutes, stakingMinimalRoutes, tippingRoutes, userRoutes, farcasterRoutes, debugRoutes, apiDebugRoutes;
 
 try {
   console.log('🔍 INDEX: Importing staking routes...');
@@ -77,7 +77,6 @@ try {
 try {
   console.log('🔍 INDEX: Importing other routes...');
   tippingRoutes = require('./routes/tipping');
-  tippingSecureRoutes = require('./routes/tipping-secure');
   userRoutes = require('./routes/users');
   farcasterRoutes = require('./routes/farcaster');
   debugRoutes = require('./routes/debug');
@@ -138,14 +137,6 @@ if (tippingRoutes) {
     console.log('✅ INDEX: Regular tipping routes registered');
   } catch (error) {
     console.error('❌ INDEX: Failed to register tipping routes:', error);
-  }
-}
-if (tippingSecureRoutes) {
-  try {
-    app.use('/api/tipping', tippingSecureRoutes);
-    console.log('✅ INDEX: Secure tipping routes registered');
-  } catch (error) {
-    console.error('❌ INDEX: Failed to register secure tipping routes:', error);
   }
 }
 if (userRoutes) app.use('/api/users', userRoutes);

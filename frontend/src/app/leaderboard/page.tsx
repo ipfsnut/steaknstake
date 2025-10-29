@@ -298,7 +298,7 @@ export default function LeaderboardPage() {
                         <div className="flex items-center">
                           {player.avatarUrl ? (
                             <img
-                              className="h-10 w-10 rounded-full mr-3"
+                              className="h-10 w-10 rounded-full mr-3 object-cover"
                               src={player.avatarUrl}
                               alt={`${player.ensName || player.farcasterUsername || 'User'}'s avatar`}
                               onError={(e) => {

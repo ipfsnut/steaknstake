@@ -87,6 +87,7 @@ CLAUDE.md
 
 # Planning documents (temporary analysis files)
 planning-docs/
+plans/
 
 # Backend analysis and deployment scripts (contain database URLs)
 backend/scripts/analyze-*.js

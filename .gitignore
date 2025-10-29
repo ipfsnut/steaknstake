@@ -84,3 +84,13 @@ scripts/generate-wallet.js
 
 # Claude AI context and instructions (contains sensitive info)
 CLAUDE.md
+
+# Planning documents (temporary analysis files)
+planning-docs/
+
+# Backend analysis and deployment scripts (contain database URLs)
+backend/scripts/analyze-*.js
+backend/scripts/find-*.js
+backend/scripts/test-*.js
+backend/scripts/deploy-*.js
+backend/scripts/setup-*.js

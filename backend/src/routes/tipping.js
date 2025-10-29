@@ -169,7 +169,7 @@ router.post('/send', async (req, res) => {
 
       // Check tip amount limits
       const minTip = 0.1; // 0.1 STEAK minimum
-      const maxTip = 1000; // 1000 STEAK maximum
+      const maxTip = 100000; // 100k STEAK maximum per tip
       
       if (tipAmount < minTip) {
         await client.query('ROLLBACK');

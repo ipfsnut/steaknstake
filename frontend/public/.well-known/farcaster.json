@@ -9,12 +9,14 @@
     "name": "Steak 'n' Stake",
     "iconUrl": "https://steak.epicdylan.com/SteakNStake.png",
     "homeUrl": "https://steak.epicdylan.com",
+    "imageUrl": "https://steak.epicdylan.com/SteakNStake.png",
+    "buttonTitle": "🥩 Start Staking",
     "splashImageUrl": "https://steak.epicdylan.com/SteakNStake.png",
     "splashBackgroundColor": "#000000",
     "webhookUrl": "https://steaknstake-backend.onrender.com/api/farcaster/webhook",
     "subtitle": "Stake STEAK; tip STEAK; grow.",
-    "description": "Stake STEAK; tip STEAK; grow.",
+    "description": "Stake $STEAK tokens, earn rewards, and tip your favorite Farcaster creators with daily tip allowances.",
     "primaryCategory": "social",
-    "tags": ["social", "community", "steak", "staking"]
+    "tags": ["social", "community", "steak", "staking", "tipping"]
   }
 }

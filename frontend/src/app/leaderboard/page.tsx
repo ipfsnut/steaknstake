@@ -100,10 +100,23 @@ export default function LeaderboardPage() {
           }
         }
         
-        // Fallback to contract + backend
-        console.log('📊 Falling back to contract data');
+        // Fallback to backend API first, then contract
+        console.log('📊 Falling back to backend data');
         setUsingSubgraph(false);
         
+        // Try backend API first
+        try {
+          const response = await stakingApi.getLeaderboard();
+          if (response.data.success && response.data.data.leaderboard.length > 0) {
+            setPlayers(response.data.data.leaderboard);
+            setStats(response.data.data.stats);
+            return; // Successfully used backend API
+          }
+        } catch (apiError) {
+          console.log('Backend API not available, showing contract stats only');
+        }
+
+        // Final fallback to contract data only if backend fails
         if (contractTotalStaked) {
           const totalStaked = formatEther(contractTotalStaked);
           setStats({
@@ -112,17 +125,6 @@ export default function LeaderboardPage() {
             earningPlayers: 1,
             totalStaked: parseFloat(totalStaked).toLocaleString()
           });
-        }
-
-        // Try backend API but don't fail if it's empty
-        try {
-          const response = await stakingApi.getLeaderboard();
-          if (response.data.success && response.data.data.leaderboard.length > 0) {
-            setPlayers(response.data.data.leaderboard);
-            setStats(response.data.data.stats);
-          }
-        } catch (apiError) {
-          console.log('Backend API not available, showing contract stats only');
         }
         
       } catch (error) {

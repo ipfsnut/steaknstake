@@ -337,15 +337,34 @@ export default function HomePage() {
       contractStakedAmount
     });
     
-    // Calculate total stakers: if there's any staked amount, there's at least 1 staker
-    const totalStakers = realTotalStaked > 0 ? 1 : 0; // For now, simple calculation
+    // Start with fallback staker count  
+    let totalStakers = realTotalStaked > 0 ? 1 : 0;
     
-    // Update platform stats with backend data
+    // Update platform stats with initial data
     setStakingStats({
       totalStakers,
       totalStaked: realTotalStaked,
-      tipsAvailable: userClaimableTips // Use backend data
+      tipsAvailable: userClaimableTips
     });
+
+    // Fetch real staker count from backend leaderboard
+    const fetchStakerCount = async () => {
+      try {
+        const leaderboardResponse = await stakingApi.getLeaderboard();
+        if (leaderboardResponse.data.success && leaderboardResponse.data.data.stats) {
+          const realStakerCount = leaderboardResponse.data.data.stats.totalPlayers || totalStakers;
+          console.log('✅ Using real staker count from backend:', realStakerCount);
+          setStakingStats(prev => ({
+            ...prev,
+            totalStakers: realStakerCount
+          }));
+        }
+      } catch (error) {
+        console.log('⚠️ Failed to fetch staker count, using fallback:', totalStakers);
+      }
+    };
+    
+    fetchStakerCount();
     
     // Create leaderboard with real user if they have stakes
     const leaderboard = [];

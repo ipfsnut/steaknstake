@@ -113,7 +113,13 @@ router.post('/webhook', async (req, res) => {
     const { type, data } = req.body;
     
     // Log EVERYTHING for debugging
-    logger.info('🌐 WEBHOOK RECEIVED - FULL PAYLOAD:', JSON.stringify(req.body, null, 2));
+    logger.info('🌐 WEBHOOK EVENT RECEIVED:', { 
+      type, 
+      timestamp: new Date().toISOString(),
+      castHash: data?.hash,
+      author: data?.author?.username 
+    });
+    logger.info('🌐 WEBHOOK FULL PAYLOAD:', JSON.stringify(req.body, null, 2));
     
     logger.info('🌐 WEBHOOK RECEIVED:', { 
       type, 
@@ -276,7 +282,10 @@ async function handleCastCreated(castData) {
 async function processTipFromFarcaster(tipData) {
   const { hash, tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount, castText } = tipData;
   
-  logger.info('🔄 Starting tip processing:', { tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount });
+  logger.info('🎯 ENTERING processTipFromFarcaster:', { 
+    hash, tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount,
+    timestamp: new Date().toISOString() 
+  });
   
   try {
     // First, get the tipper's wallet address from their FID
@@ -308,34 +317,55 @@ async function processTipFromFarcaster(tipData) {
 
     logger.info('🔄 Calling consolidated tipping API:', tipRequest);
 
-    const apiResponse = await axios.post('http://localhost:10000/api/tipping/send', tipRequest, {
+    // Use production URL in production, localhost in development
+    const apiUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://steaknstake-backend.onrender.com/api/tipping/send'
+      : 'http://localhost:10000/api/tipping/send';
+    
+    logger.info('🔗 Making API call to:', apiUrl);
+
+    const apiResponse = await axios.post(apiUrl, tipRequest, {
       headers: {
         'Content-Type': 'application/json'
       },
       timeout: 30000
     });
 
+    logger.info('📥 API Response received:', { success: apiResponse.data.success, status: apiResponse.status });
+
     if (apiResponse.data.success) {
       logger.info(`✅ Tip processed successfully via API: ${tipAmount} $STEAK from @${tipperUsername} to @${recipientUsername}`);
+      logger.info('🏁 EXITING processTipFromFarcaster: SUCCESS');
       await postTipSuccess(hash, tipperUsername, recipientUsername, tipAmount, apiResponse.data.tip.id);
     } else {
       logger.error(`❌ API tip failed:`, apiResponse.data.error);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, apiResponse.data.error || 'Processing error - please try again!');
+      logger.info('🏁 EXITING processTipFromFarcaster: API_FAILURE');
+      // Preserve specific error message from API
+      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, apiResponse.data.error || 'API returned no error details');
     }
     
   } catch (error) {
     logger.error('❌ Error processing Farcaster tip:', {
       error: error.message,
       stack: error.stack,
+      responseData: error.response?.data,
+      responseStatus: error.response?.status,
       tipData: { tipperFid, tipperUsername, recipientFid, recipientUsername, tipAmount }
     });
     
-    // Parse API error for better user message
-    let errorMessage = 'Processing error - please try again!';
+    // Preserve specific error messages instead of masking them
+    let errorMessage = 'Unknown error occurred';
     if (error.response?.data?.error) {
       errorMessage = error.response.data.error;
+    } else if (error.message.includes('ECONNREFUSED')) {
+      errorMessage = 'Unable to connect to tipping service';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'Tipping service timeout - please try again';
+    } else {
+      errorMessage = error.message;
     }
     
+    logger.info('🏁 EXITING processTipFromFarcaster: EXCEPTION', { errorMessage });
     await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, errorMessage);
   }
 }

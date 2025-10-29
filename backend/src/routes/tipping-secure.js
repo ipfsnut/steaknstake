@@ -155,10 +155,19 @@ router.post('/send-secure', async (req, res) => {
           logger.error('Failed to fetch recipient wallet from Farcaster:', error.message);
         }
         
-        // Create recipient user with their wallet address (if found)
+        // Only create user if we found their wallet address
+        if (!recipientWalletAddress) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            success: false,
+            error: `Recipient @${recipientUsername} needs to connect their wallet at steak.epicdylan.com first to receive tips.`
+          });
+        }
+
+        // Create recipient user with their wallet address
         const insertResult = await client.query(
           'INSERT INTO users (farcaster_fid, farcaster_username, wallet_address) VALUES ($1, $2, $3) RETURNING *',
-          [recipientFid, recipientUsername, recipientWalletAddress]
+          [recipientFid, recipientUsername, recipientWalletAddress.toLowerCase()]
         );
         recipient = insertResult.rows[0];
         

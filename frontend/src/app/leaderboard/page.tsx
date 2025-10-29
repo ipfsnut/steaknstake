@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useReadContract } from 'wagmi';
 import { formatEther } from 'viem';
+import { useRouter } from 'next/navigation';
 import { CONTRACTS, STEAKNSTAKE_ABI } from '@/lib/contracts';
 import { stakingApi, farcasterApi } from '@/lib/api';
 
@@ -47,6 +48,7 @@ interface LeaderboardStats {
 export default function LeaderboardPage() {
   console.log('🏆 LeaderboardPage component mounted');
   
+  const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
   const [stats, setStats] = useState<LeaderboardStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -196,6 +198,36 @@ export default function LeaderboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white border-b sticky top-0 z-50">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <button 
+              onClick={() => router.push('/')}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+            >
+              <div className="text-2xl">🥩</div>
+              <span className="text-xl font-bold text-red-600">SteakNStake</span>
+            </button>
+            
+            <nav className="flex items-center gap-4">
+              <button 
+                onClick={() => router.push('/')}
+                className="font-medium text-gray-600 hover:text-red-600 transition-colors"
+              >
+                Home
+              </button>
+              <button 
+                className="font-medium text-red-600"
+              >
+                Leaderboard
+              </button>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">🏆 Leaderboard</h1>

@@ -486,7 +486,7 @@ router.get('/stats', async (req, res) => {
         COUNT(DISTINCT user_id) as total_stakers,
         COALESCE(SUM(staked_amount), 0) as total_staked,
         COALESCE(SUM(total_rewards_earned), 0) as total_rewards_earned,
-        COALESCE(SUM(available_tip_balance), 0) as total_available_tips
+        COALESCE(SUM(daily_allowance_start - daily_tips_sent), 0) as total_available_tips
       FROM staking_positions 
       WHERE staked_amount > 0
     `);
@@ -527,20 +527,23 @@ router.get('/leaderboard', async (req, res) => {
     
     const client = await db.getClient();
     
+    // Use leaderboard cache for fast, consistent results
     const leaderboardResult = await client.query(`
       SELECT 
-        u.wallet_address,
+        lc.wallet_address,
+        lc.rank,
+        lc.staked_amount,
+        lc.total_tips_sent,
+        lc.total_tips_received,
+        lc.leaderboard_score,
         u.farcaster_username,
         u.farcaster_fid,
-        sp.staked_amount,
-        sp.total_rewards_earned,
-        sp.available_tip_balance,
         sp.staked_at,
-        ROW_NUMBER() OVER (ORDER BY sp.staked_amount DESC) as rank
-      FROM staking_positions sp
-      JOIN users u ON sp.user_id = u.id
-      WHERE sp.staked_amount > 0
-      ORDER BY sp.staked_amount DESC
+        sp.total_rewards_earned
+      FROM leaderboard_cache lc
+      LEFT JOIN users u ON lc.wallet_address = u.wallet_address
+      LEFT JOIN staking_positions sp ON u.id = sp.user_id
+      ORDER BY lc.rank
       LIMIT $1 OFFSET $2
     `, [limit, offset]);
     
@@ -552,8 +555,10 @@ router.get('/leaderboard', async (req, res) => {
       farcasterUsername: row.farcaster_username,
       farcasterFid: row.farcaster_fid,
       stakedAmount: parseFloat(row.staked_amount),
-      totalRewardsEarned: parseFloat(row.total_rewards_earned),
-      availableTipBalance: parseFloat(row.available_tip_balance),
+      totalRewardsEarned: parseFloat(row.total_rewards_earned || 0),
+      totalTipsSent: parseFloat(row.total_tips_sent),
+      totalTipsReceived: parseFloat(row.total_tips_received),
+      leaderboardScore: parseFloat(row.leaderboard_score),
       stakedAt: row.staked_at
     }));
     
@@ -565,15 +570,20 @@ router.get('/leaderboard', async (req, res) => {
           limit,
           offset,
           hasMore: leaderboard.length === limit
-        }
+        },
+        lastUpdated: leaderboardResult.rows[0]?.last_updated
       }
     });
     
   } catch (error) {
+    console.error('🚨 LEADERBOARD ERROR:', error);
+    console.error('🚨 LEADERBOARD ERROR STACK:', error.stack);
     logger.error('Error getting leaderboard:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get leaderboard'
+      error: 'Failed to get leaderboard',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });

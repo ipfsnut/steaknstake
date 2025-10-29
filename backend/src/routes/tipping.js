@@ -40,6 +40,8 @@ router.post('/send', async (req, res) => {
 
     const { 
       tipperWalletAddress,
+      tipperFid,
+      tipperUsername,
       recipientFid,
       recipientUsername,
       tipAmount,
@@ -50,21 +52,23 @@ router.post('/send', async (req, res) => {
 
     logger.info('📋 PARSED REQUEST DATA:', { 
       tipperWalletAddress, 
+      tipperFid,
+      tipperUsername,
       recipientFid, 
       recipientUsername, 
       tipAmount 
     });
     
-    // Validate required parameters
-    if (!tipperWalletAddress || !recipientFid || !tipAmount || tipAmount <= 0) {
+    // Validate required parameters - accept either wallet address OR FID
+    if ((!tipperWalletAddress && !tipperFid) || !recipientFid || !tipAmount || tipAmount <= 0) {
       return res.status(400).json({
         success: false,
-        error: 'Tipper wallet, recipient FID, and positive tip amount required'
+        error: 'Tipper wallet or FID, recipient FID, and positive tip amount required'
       });
     }
 
-    // Validate wallet address format
-    if (!ethers.isAddress(tipperWalletAddress)) {
+    // Validate wallet address format if provided
+    if (tipperWalletAddress && !ethers.isAddress(tipperWalletAddress)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid tipper wallet address'
@@ -76,20 +80,34 @@ router.post('/send', async (req, res) => {
     try {
       await client.query('BEGIN');
       
-      // Get tipper user
-      logger.info('🔍 LOOKING UP TIPPER:', { 
-        wallet: tipperWalletAddress, 
-        walletLowercase: tipperWalletAddress.toLowerCase() 
-      });
-
-      const tipperResult = await client.query(
-        'SELECT * FROM users WHERE wallet_address = $1',
-        [tipperWalletAddress.toLowerCase()]
-      );
+      // Get tipper user - try by FID first, then by wallet address
+      let tipperResult;
+      
+      if (tipperFid) {
+        logger.info('🔍 LOOKING UP TIPPER BY FID:', { fid: tipperFid, username: tipperUsername });
+        tipperResult = await client.query(
+          'SELECT * FROM users WHERE farcaster_fid = $1',
+          [tipperFid]
+        );
+      } else {
+        logger.info('🔍 LOOKING UP TIPPER BY WALLET:', { 
+          wallet: tipperWalletAddress, 
+          walletLowercase: tipperWalletAddress.toLowerCase() 
+        });
+        tipperResult = await client.query(
+          'SELECT * FROM users WHERE wallet_address = $1',
+          [tipperWalletAddress.toLowerCase()]
+        );
+      }
 
       logger.info('📊 TIPPER LOOKUP RESULT:', { 
+        lookupMethod: tipperFid ? 'FID' : 'wallet',
         rowsFound: tipperResult.rows.length,
-        foundUser: tipperResult.rows[0] ? { id: tipperResult.rows[0].id, wallet: tipperResult.rows[0].wallet_address } : null
+        foundUser: tipperResult.rows[0] ? { 
+          id: tipperResult.rows[0].id, 
+          wallet: tipperResult.rows[0].wallet_address,
+          fid: tipperResult.rows[0].farcaster_fid 
+        } : null
       });
       
       if (tipperResult.rows.length === 0) {
@@ -101,6 +119,7 @@ router.post('/send', async (req, res) => {
       }
       
       const tipper = tipperResult.rows[0];
+      const actualTipperWallet = tipper.wallet_address; // Use wallet from database record
       
       // CRITICAL: Prevent self-tipping
       if (tipper.farcaster_fid && parseInt(tipper.farcaster_fid) === parseInt(recipientFid)) {
@@ -190,7 +209,7 @@ router.post('/send', async (req, res) => {
       // Check tipper's tip allowance on-chain
       let availableAllowance;
       try {
-        const allowanceWei = await steakNStakeContract.getAvailableTipAllowance(tipperWalletAddress);
+        const allowanceWei = await steakNStakeContract.getAvailableTipAllowance(actualTipperWallet);
         availableAllowance = parseFloat(ethers.formatEther(allowanceWei));
       } catch (contractError) {
         logger.error('Error checking tip allowance:', contractError);

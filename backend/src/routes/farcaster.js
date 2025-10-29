@@ -288,25 +288,10 @@ async function processTipFromFarcaster(tipData) {
   });
   
   try {
-    // First, get the tipper's wallet address from their FID
-    const tipperResponse = await axios.get(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${tipperFid}`, {
-      headers: {
-        'accept': 'application/json',
-        'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC'
-      }
-    });
-
-    if (!tipperResponse.data?.users?.[0]?.verifications?.[0]) {
-      logger.warn(`Tip failed: No verified wallet found for tipper FID ${tipperFid}`);
-      await postTipFailure(hash, tipperUsername, recipientUsername, tipAmount, 'Connect your wallet at steak.epicdylan.com first! Then use: @steaknstake [amount] $STEAK');
-      return;
-    }
-
-    const tipperWalletAddress = tipperResponse.data.users[0].verifications[0];
-
-    // Call our consolidated tipping API
+    // Call our consolidated tipping API with FID for lookup
     const tipRequest = {
-      tipperWalletAddress,
+      tipperFid,
+      tipperUsername,
       recipientFid,
       recipientUsername,
       tipAmount,

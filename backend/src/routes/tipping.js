@@ -139,10 +139,15 @@ router.post('/send', async (req, res) => {
     }
     
   } catch (error) {
-    logger.error('Error sending tip:', error);
+    logger.error('Error sending tip:', {
+      error: error.message,
+      stack: error.stack,
+      requestBody: req.body
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to send tip'
+      error: 'Failed to send tip',
+      details: error.message
     });
   }
 });

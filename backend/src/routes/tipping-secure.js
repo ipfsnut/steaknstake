@@ -134,8 +134,8 @@ router.post('/send-secure', async (req, res) => {
       if (recipientResult.rows.length === 0) {
         // Create recipient user (they'll need to connect wallet later to claim)
         const insertResult = await client.query(
-          'INSERT INTO users (farcaster_fid, farcaster_username) VALUES ($1, $2) RETURNING *',
-          [recipientFid, recipientUsername]
+          'INSERT INTO users (farcaster_fid, farcaster_username, wallet_address) VALUES ($1, $2, $3) RETURNING *',
+          [recipientFid, recipientUsername, null]
         );
         recipient = insertResult.rows[0];
         

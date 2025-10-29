@@ -4,7 +4,7 @@
 -- Users table - tracks wallet addresses and basic info
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
-    wallet_address VARCHAR(42) UNIQUE NOT NULL,
+    wallet_address VARCHAR(42) UNIQUE, -- Removed NOT NULL to allow Farcaster-only users
     farcaster_fid INTEGER,
     farcaster_username VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -132,7 +132,14 @@ if (apiDebugRoutes) {
   }
 }
 
-if (tippingRoutes) app.use('/api/tipping', tippingRoutes);
+if (tippingRoutes) {
+  try {
+    app.use('/api/tipping', tippingRoutes);
+    console.log('✅ INDEX: Regular tipping routes registered');
+  } catch (error) {
+    console.error('❌ INDEX: Failed to register tipping routes:', error);
+  }
+}
 if (tippingSecureRoutes) {
   try {
     app.use('/api/tipping', tippingSecureRoutes);

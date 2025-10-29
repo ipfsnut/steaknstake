@@ -67,21 +67,44 @@ export default function LeaderboardPage() {
         setUsingSubgraph(false);
         
         try {
-          console.log('🔍 Calling stakingApi.getLeaderboard()...');
-          const response = await stakingApi.getLeaderboard();
-          console.log('📡 Leaderboard API response:', response.data);
-          console.log('📡 Leaderboard data structure:', {
-            success: response.data.success,
-            dataExists: !!response.data.data,
-            leaderboardExists: !!response.data.data?.leaderboard,
-            leaderboardType: typeof response.data.data?.leaderboard,
-            leaderboardLength: response.data.data?.leaderboard?.length
-          });
+          console.log('🔍 Calling leaderboard and stats APIs...');
+          const [leaderboardResponse, statsResponse] = await Promise.all([
+            stakingApi.getLeaderboard(),
+            stakingApi.getStats()
+          ]);
           
-          if (response.data.success && response.data.data.leaderboard.length > 0) {
-            console.log('✅ Setting leaderboard players:', response.data.data.leaderboard.length, 'players');
-            setPlayers(response.data.data.leaderboard);
-            setStats(response.data.data.stats);
+          console.log('📡 Leaderboard response:', leaderboardResponse.data);
+          console.log('📡 Stats response:', statsResponse.data);
+          
+          if (leaderboardResponse.data.success && leaderboardResponse.data.data?.leaderboard?.length > 0) {
+            console.log('✅ Setting leaderboard players:', leaderboardResponse.data.data.leaderboard.length, 'players');
+            
+            // Transform backend data to match frontend interface
+            const transformedPlayers: Player[] = leaderboardResponse.data.data.leaderboard.map((player: any) => ({
+              rank: player.rank,
+              address: player.walletAddress,
+              ensName: player.farcasterUsername || undefined,
+              stakedAmount: player.stakedAmount.toLocaleString(),
+              stakedAmountRaw: player.stakedAmount,
+              lockExpiry: '', // Backend doesn't provide lock expiry yet
+              stakeDate: player.stakedAt,
+              totalEarned: player.totalRewardsEarned.toLocaleString(),
+              isTopTen: player.rank <= 10
+            }));
+            
+            setPlayers(transformedPlayers);
+            
+            // Set stats from separate endpoint
+            if (statsResponse.data.success && statsResponse.data.data) {
+              const statsData = statsResponse.data.data;
+              setStats({
+                totalPlayers: statsData.totalStakers,
+                activeStakers: statsData.totalStakers,
+                earningPlayers: statsData.totalStakers,
+                totalStaked: statsData.totalStaked.toLocaleString()
+              });
+            }
+            
             return; // Successfully used backend API
           } else {
             console.log('❌ Leaderboard API returned empty or unsuccessful response');

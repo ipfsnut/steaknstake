@@ -110,6 +110,7 @@ export const usersApi = {
 export const farcasterApi = {
   getUser: (fid: number) => api.get(`/api/farcaster/user/${fid}`),
   getCastTips: (hash: string) => api.get(`/api/farcaster/cast/${hash}`),
+  getProfiles: (fids: number[]) => api.get(`/api/farcaster/profiles/${fids.join(',')}`),
   getTrendingTippers: (hours?: number, limit?: number) => {
     const params = new URLSearchParams();
     if (hours) params.append('hours', hours.toString());

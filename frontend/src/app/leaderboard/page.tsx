@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useReadContract } from 'wagmi';
 import { formatEther } from 'viem';
 import { CONTRACTS, STEAKNSTAKE_ABI } from '@/lib/contracts';
-import { stakingApi } from '@/lib/api';
+import { stakingApi, farcasterApi } from '@/lib/api';
 
 interface EffectiveStake {
   effectiveAmount: number;
@@ -32,6 +32,9 @@ interface Player {
   totalEarned: string;
   effectiveStake?: EffectiveStake;
   isTopTen: boolean;
+  farcasterFid?: number;
+  farcasterUsername?: string;
+  avatarUrl?: string;
 }
 
 interface LeaderboardStats {
@@ -88,10 +91,46 @@ export default function LeaderboardPage() {
               lockExpiry: '', // Backend doesn't provide lock expiry yet
               stakeDate: player.stakedAt,
               totalEarned: player.totalRewardsEarned.toLocaleString(),
-              isTopTen: player.rank <= 10
+              isTopTen: player.rank <= 10,
+              farcasterFid: player.farcasterFid,
+              farcasterUsername: player.farcasterUsername
             }));
             
             setPlayers(transformedPlayers);
+            
+            // Fetch profile pictures for players with FIDs
+            const playersWithFids = transformedPlayers.filter(p => p.farcasterFid);
+            if (playersWithFids.length > 0) {
+              try {
+                const fids = playersWithFids.map(p => p.farcasterFid!);
+                console.log('📸 Fetching profile pictures for FIDs:', fids);
+                const profilesResponse = await farcasterApi.getProfiles(fids);
+                
+                if (profilesResponse.data.success) {
+                  const profiles = profilesResponse.data.data.profiles;
+                  console.log('✅ Received profile data:', profiles);
+                  
+                  // Update players with avatar URLs
+                  setPlayers(currentPlayers => 
+                    currentPlayers.map(player => {
+                      if (player.farcasterFid) {
+                        const profile = profiles.find((p: any) => p.fid === player.farcasterFid);
+                        if (profile) {
+                          return {
+                            ...player,
+                            avatarUrl: profile.avatarUrl,
+                            ensName: profile.displayName || player.ensName // Use display name if available
+                          };
+                        }
+                      }
+                      return player;
+                    })
+                  );
+                }
+              } catch (profileError) {
+                console.log('⚠️ Failed to fetch profile pictures:', profileError);
+              }
+            }
             
             // Set stats from separate endpoint
             if (statsResponse.data.success && statsResponse.data.data) {
@@ -224,11 +263,38 @@ export default function LeaderboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          {player.ensName ? (
-                            <div className="text-sm font-medium text-gray-900">{player.ensName}</div>
-                          ) : null}
-                          <div className="text-sm text-gray-500 font-mono">{formatAddress(player.address)}</div>
+                        <div className="flex items-center">
+                          {player.avatarUrl ? (
+                            <img
+                              className="h-10 w-10 rounded-full mr-3"
+                              src={player.avatarUrl}
+                              alt={`${player.ensName || player.farcasterUsername || 'User'}'s avatar`}
+                              onError={(e) => {
+                                // Hide broken images
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : player.farcasterUsername ? (
+                            <div className="h-10 w-10 rounded-full mr-3 bg-purple-100 flex items-center justify-center">
+                              <span className="text-purple-600 font-bold text-sm">
+                                {player.farcasterUsername.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="h-10 w-10 rounded-full mr-3 bg-gray-100 flex items-center justify-center">
+                              <span className="text-gray-600 font-bold text-sm">
+                                {player.address.slice(2, 4).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            {player.ensName ? (
+                              <div className="text-sm font-medium text-gray-900">{player.ensName}</div>
+                            ) : player.farcasterUsername ? (
+                              <div className="text-sm font-medium text-gray-900">@{player.farcasterUsername}</div>
+                            ) : null}
+                            <div className="text-sm text-gray-500 font-mono">{formatAddress(player.address)}</div>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

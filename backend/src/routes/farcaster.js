@@ -611,6 +611,103 @@ router.get('/trending-tippers', async (req, res) => {
   }
 });
 
+// GET /api/farcaster/profiles/:fids - Get Farcaster profile info including avatars for multiple FIDs
+router.get('/profiles/:fids', async (req, res) => {
+  try {
+    const { fids } = req.params;
+    
+    // Validate FIDs parameter
+    if (!fids) {
+      return res.status(400).json({
+        success: false,
+        error: 'FIDs parameter is required'
+      });
+    }
+    
+    // Clean and validate FIDs
+    const fidArray = fids.split(',')
+      .map(fid => parseInt(fid.trim()))
+      .filter(fid => !isNaN(fid) && fid > 0);
+    
+    if (fidArray.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid FIDs provided'
+      });
+    }
+    
+    // Limit to prevent abuse
+    if (fidArray.length > 100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Maximum 100 FIDs allowed per request'
+      });
+    }
+    
+    logger.info('📸 Fetching Farcaster profiles for FIDs:', fidArray);
+    
+    // Fetch user details from Neynar API
+    const userResponse = await axios.get(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${fidArray.join(',')}`, {
+      headers: {
+        'accept': 'application/json',
+        'api_key': process.env.NEYNAR_API_KEY || '67AA399D-B5BA-4EA3-9A4D-315D151D7BBC'
+      }
+    });
+    
+    if (!userResponse.data?.users) {
+      return res.status(404).json({
+        success: false,
+        error: 'No users found for provided FIDs'
+      });
+    }
+    
+    // Transform response to include relevant profile data
+    const profiles = userResponse.data.users.map(user => ({
+      fid: user.fid,
+      username: user.username,
+      displayName: user.display_name,
+      avatarUrl: user.pfp_url,
+      bio: user.profile?.bio?.text || '',
+      followerCount: user.follower_count || 0,
+      followingCount: user.following_count || 0,
+      verifications: user.verifications || []
+    }));
+    
+    logger.info(`✅ Successfully fetched ${profiles.length} Farcaster profiles`);
+    
+    res.json({
+      success: true,
+      data: {
+        profiles,
+        totalFound: profiles.length,
+        requestedFids: fidArray
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error fetching Farcaster profiles:', error);
+    
+    if (error.response?.status === 401) {
+      return res.status(500).json({
+        success: false,
+        error: 'Neynar API authentication failed'
+      });
+    }
+    
+    if (error.response?.status === 429) {
+      return res.status(429).json({
+        success: false,
+        error: 'Rate limited by Neynar API'
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch Farcaster profiles'
+    });
+  }
+});
+
 // GET /api/farcaster/trending-recipients - Get trending tip recipients
 router.get('/trending-recipients', async (req, res) => {
   try {

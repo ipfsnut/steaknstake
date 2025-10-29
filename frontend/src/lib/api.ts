@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://steaknstake-backend.onrender.com';
+
+if (!process.env.NEXT_PUBLIC_API_URL) {
+  console.warn('⚠️ NEXT_PUBLIC_API_URL not set, using fallback:', API_BASE_URL);
+}
 
 const api = axios.create({
   baseURL: API_BASE_URL,

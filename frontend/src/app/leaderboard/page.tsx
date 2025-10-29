@@ -47,7 +47,6 @@ export default function LeaderboardPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [stats, setStats] = useState<LeaderboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'top10' | 'active'>('all');
   const [usingSubgraph, setUsingSubgraph] = useState(false);
 
   // Read contract data for real platform stats
@@ -69,7 +68,7 @@ export default function LeaderboardPage() {
         try {
           console.log('🔍 Calling leaderboard and stats APIs...');
           const [leaderboardResponse, statsResponse] = await Promise.all([
-            stakingApi.getLeaderboard(),
+            stakingApi.getLeaderboard(100), // Get top 100 stakers
             stakingApi.getStats()
           ]);
           
@@ -132,7 +131,7 @@ export default function LeaderboardPage() {
     };
 
     fetchLeaderboard();
-  }, [filter, contractTotalStaked]);
+  }, [contractTotalStaked]);
 
   const formatAddress = (address: string) => {
     if (address.length <= 10) return address;
@@ -155,20 +154,13 @@ export default function LeaderboardPage() {
     return `${hours}h`;
   };
 
-  const filteredPlayers = players.filter(player => {
-    switch(filter) {
-      case 'top10': return player.isTopTen;
-      case 'active': return player.stakedAmountRaw > 0;
-      default: return true;
-    }
-  });
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto px-4 py-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">🏆 Leaderboard</h1>
-          <p className="text-gray-600">Top stakers and their performance</p>
+          <p className="text-gray-600">Top 100 $STEAK stakers ranked by staked amount</p>
           {usingSubgraph && (
             <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 text-green-800">
               📊 Real-time data via subgraph
@@ -201,25 +193,6 @@ export default function LeaderboardPage() {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="flex justify-center mb-6">
-          <div className="bg-white rounded-lg p-1 shadow-md">
-            {(['all', 'top10', 'active'] as const).map((filterOption) => (
-              <button
-                key={filterOption}
-                onClick={() => setFilter(filterOption)}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                  filter === filterOption
-                    ? 'bg-blue-500 text-white'
-                    : 'text-gray-600 hover:text-blue-500'
-                }`}
-              >
-                {filterOption === 'all' ? 'All Players' : 
-                 filterOption === 'top10' ? 'Top 10' : 'Active Stakers'}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Leaderboard */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
@@ -228,7 +201,7 @@ export default function LeaderboardPage() {
               <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-4"></div>
               <p className="text-gray-500">Loading leaderboard...</p>
             </div>
-          ) : filteredPlayers.length > 0 ? (
+          ) : players.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b">
@@ -237,11 +210,10 @@ export default function LeaderboardPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Player</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Staked Amount</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Earned</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lock Status</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredPlayers.map((player) => (
+                  {players.map((player) => (
                     <tr key={player.address} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -270,15 +242,6 @@ export default function LeaderboardPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-green-600">{player.totalEarned} $STEAK</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          formatTimeRemaining(player.lockExpiry) === 'Unlocked' || formatTimeRemaining(player.lockExpiry) === 'No lock'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {formatTimeRemaining(player.lockExpiry)}
-                        </span>
                       </td>
                     </tr>
                   ))}

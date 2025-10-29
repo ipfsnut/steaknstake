@@ -347,12 +347,12 @@ export default function HomePage() {
       tipsAvailable: userClaimableTips
     });
 
-    // Fetch real staker count from backend leaderboard
+    // Fetch real staker count from backend stats
     const fetchStakerCount = async () => {
       try {
-        const leaderboardResponse = await stakingApi.getLeaderboard();
-        if (leaderboardResponse.data.success && leaderboardResponse.data.data.stats) {
-          const realStakerCount = leaderboardResponse.data.data.stats.totalPlayers || totalStakers;
+        const statsResponse = await stakingApi.getStats();
+        if (statsResponse.data.success && statsResponse.data.data) {
+          const realStakerCount = statsResponse.data.data.totalStakers || totalStakers;
           console.log('✅ Using real staker count from backend:', realStakerCount);
           setStakingStats(prev => ({
             ...prev,

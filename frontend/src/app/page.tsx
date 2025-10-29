@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
 import { formatEther } from 'viem';
+import { useRouter } from 'next/navigation';
 import { stakingApi, tippingApi } from '@/lib/api';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
@@ -46,6 +47,7 @@ interface TopStaker {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [activeSection, setActiveSection] = useState('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [stakingStats, setStakingStats] = useState<StakingStats>({
@@ -1184,7 +1186,7 @@ export default function HomePage() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto mb-12">
               <button 
-                onClick={() => setActiveSection('leaderboard')}
+                onClick={() => router.push('/leaderboard')}
                 className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 text-center border border-blue-200 shadow-lg hover:shadow-xl transition-all transform hover:scale-105 cursor-pointer"
               >
                 <div className="text-3xl mb-3">👥</div>
@@ -1299,7 +1301,7 @@ export default function HomePage() {
                 Claim
               </button>
               <button 
-                onClick={() => setActiveSection('leaderboard')}
+                onClick={() => router.push('/leaderboard')}
                 className={`font-medium ${activeSection === 'leaderboard' ? 'text-red-600' : 'text-gray-600 hover:text-red-600'}`}
               >
                 Leaderboard
@@ -1349,7 +1351,7 @@ export default function HomePage() {
                   Claim
                 </button>
                 <button 
-                  onClick={() => { setActiveSection('leaderboard'); setMobileMenuOpen(false); }}
+                  onClick={() => { router.push('/leaderboard'); setMobileMenuOpen(false); }}
                   className="block w-full text-left py-2 text-gray-600"
                 >
                   Leaderboard

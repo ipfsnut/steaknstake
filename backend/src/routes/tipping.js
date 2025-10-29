@@ -33,6 +33,11 @@ const steakNStakeContract = new ethers.Contract(STEAKNSTAKE_CONTRACT_ADDRESS, ST
 // POST /api/tipping/send - Send a tip via Farcaster
 router.post('/send', async (req, res) => {
   try {
+    logger.info('🎯 TIPPING API CALLED:', { 
+      timestamp: new Date().toISOString(),
+      body: req.body 
+    });
+
     const { 
       tipperWalletAddress,
       recipientFid,
@@ -42,6 +47,13 @@ router.post('/send', async (req, res) => {
       castUrl,
       message 
     } = req.body;
+
+    logger.info('📋 PARSED REQUEST DATA:', { 
+      tipperWalletAddress, 
+      recipientFid, 
+      recipientUsername, 
+      tipAmount 
+    });
     
     // Validate required parameters
     if (!tipperWalletAddress || !recipientFid || !tipAmount || tipAmount <= 0) {
@@ -65,10 +77,20 @@ router.post('/send', async (req, res) => {
       await client.query('BEGIN');
       
       // Get tipper user
+      logger.info('🔍 LOOKING UP TIPPER:', { 
+        wallet: tipperWalletAddress, 
+        walletLowercase: tipperWalletAddress.toLowerCase() 
+      });
+
       const tipperResult = await client.query(
         'SELECT * FROM users WHERE wallet_address = $1',
         [tipperWalletAddress.toLowerCase()]
       );
+
+      logger.info('📊 TIPPER LOOKUP RESULT:', { 
+        rowsFound: tipperResult.rows.length,
+        foundUser: tipperResult.rows[0] ? { id: tipperResult.rows[0].id, wallet: tipperResult.rows[0].wallet_address } : null
+      });
       
       if (tipperResult.rows.length === 0) {
         await client.query('ROLLBACK');

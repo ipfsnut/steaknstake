@@ -28,7 +28,7 @@ const logger = winston.createLogger({
   ]
 });
 
-// Middleware
+// Middleware (Updated 2025-10-28)
 app.use(helmet());
 app.use(cors({
   origin: ['https://steak.epicdylan.com', 'http://localhost:3000'],

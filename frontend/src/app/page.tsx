@@ -750,6 +750,19 @@ export default function HomePage() {
                   )}
                   
                   <div className="space-y-4">
+                    {/* Allowance Display Widget */}
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Current Approval:</span>
+                        <span className="font-mono text-gray-800">
+                          {allowance ? `${parseFloat(formatEther(allowance)).toLocaleString()} $STEAK` : '0 $STEAK'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Amount approved for the staking contract to spend
+                      </p>
+                    </div>
+                    
                     <div className="relative">
                       <input 
                         type="number" 

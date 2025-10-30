@@ -266,6 +266,71 @@ export default function HomePage() {
     }
   };
 
+  // Claim tips functions
+  const claimTips = async (claimType: 'WITHDRAW' | 'STAKE') => {
+    if (!address || !user?.fid || unclaimedTips.length === 0) {
+      console.error('Missing required data for claiming');
+      return;
+    }
+
+    try {
+      setIsProcessing(true);
+      
+      // Get tip IDs from unclaimed tips
+      const tipIds = unclaimedTips.map(tip => tip.tipId);
+      
+      console.log('🎯 Claiming tips:', { 
+        claimType, 
+        tipIds, 
+        unclaimedAmount,
+        address,
+        fid: user.fid 
+      });
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tipping/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipientWalletAddress: address,
+          recipientFid: user.fid,
+          tipIds: tipIds,
+          claimType: claimType,
+          farcasterUsername: user.username
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setSuccessMessage(`Successfully claimed ${unclaimedAmount} $STEAK to ${claimType === 'WITHDRAW' ? 'wallet' : 'auto-stake'}!`);
+        
+        // Refresh unclaimed tips
+        await fetchUnclaimedTips();
+        
+        // Refresh wallet balance and staking data
+        refetchData();
+        
+        // Refresh user position from backend
+        if (address) {
+          const positionResponse = await stakingApi.getPosition(address);
+          if (positionResponse.data.success) {
+            setUserPosition(positionResponse.data.data);
+          }
+        }
+      } else {
+        setUserError(data.error || 'Failed to claim tips');
+      }
+    } catch (error) {
+      console.error('Error claiming tips:', error);
+      setUserError('Failed to claim tips - please try again');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const claimFullAmount = () => claimTips('WITHDRAW');
+  const claimSplit = () => claimTips('STAKE'); // For now, treat split as auto-stake
+
   // Initialize with contract data only (no backend dependency)
   useEffect(() => {
     setLoading(false);
@@ -1154,14 +1219,23 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl p-6 border mb-6">
-              <h3 className="text-xl font-bold mb-4">Claim Options</h3>
+            {unclaimedAmount > 0 && (
+              <div className="bg-white rounded-xl p-6 border mb-6">
+                <h3 className="text-xl font-bold mb-4">Claim Options</h3>
               <div className="space-y-3">
-                <button className="w-full p-3 border-2 border-green-500 text-green-700 rounded-lg font-medium hover:bg-green-50">
-                  💰 Claim Full Amount to Wallet
+                <button 
+                  onClick={claimFullAmount}
+                  disabled={isProcessing || unclaimedAmount === 0}
+                  className="w-full p-3 border-2 border-green-500 text-green-700 rounded-lg font-medium hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isProcessing ? '⏳ Processing...' : `💰 Claim Full Amount to Wallet (${unclaimedAmount} $STEAK)`}
                 </button>
-                <button className="w-full p-3 border-2 border-purple-500 text-purple-700 rounded-lg font-medium hover:bg-purple-50">
-                  ⚖️ Split: 50% Wallet + 50% Auto-Stake
+                <button 
+                  onClick={claimSplit}
+                  disabled={isProcessing || unclaimedAmount === 0}
+                  className="w-full p-3 border-2 border-purple-500 text-purple-700 rounded-lg font-medium hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isProcessing ? '⏳ Processing...' : `⚖️ Split: 50% Wallet + 50% Auto-Stake (${unclaimedAmount} $STEAK)`}
                 </button>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">
@@ -1169,7 +1243,8 @@ export default function HomePage() {
                   </p>
                 </div>
               </div>
-            </div>
+              </div>
+            )}
           </div>
         );
 

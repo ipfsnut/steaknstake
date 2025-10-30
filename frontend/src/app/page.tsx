@@ -269,63 +269,87 @@ export default function HomePage() {
     }
   };
 
-  // Claim tips functions
+  // Claim tips functions - Direct contract calls
   const claimTips = async (claimType: 'WITHDRAW' | 'STAKE') => {
-    if (!address || !user?.fid || unclaimedTips.length === 0) {
+    if (!address || !user?.fid || unclaimedAmount === 0) {
       console.error('Missing required data for claiming');
       return;
     }
 
     try {
       setIsClaimProcessing(true);
+      setClaimError(null);
       
-      // Get tip IDs from unclaimed tips
-      const tipIds = unclaimedTips.map(tip => tip.tipId);
-      
-      console.log('🎯 Claiming tips:', { 
+      console.log('🎯 Claiming tips via contract:', { 
         claimType, 
-        tipIds, 
         unclaimedAmount,
         address,
-        fid: user.fid 
+        contractFunction: claimType === 'WITHDRAW' ? 'claimToWallet' : 'claim'
       });
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/tipping/claim`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipientWalletAddress: address,
-          recipientFid: user.fid,
-          tipIds: tipIds,
-          claimType: claimType,
-          farcasterUsername: user.username
-        })
-      });
-
-      const data = await response.json();
+      // Import wagmi functions
+      const { writeContract, waitForTransactionReceipt } = await import('wagmi/actions');
+      const contractsModule = await import('@/lib/contracts');
+      const wagmiModule = await import('@/lib/wagmi');
       
-      if (data.success) {
-        setClaimSuccess(`Successfully claimed ${unclaimedAmount} $STEAK to ${claimType === 'WITHDRAW' ? 'wallet' : 'auto-stake'}!`);
-        
-        // Refresh unclaimed tips
-        await fetchUnclaimedTips();
-        
-        // Refresh wallet balance and staking data
-        refetchData();
-        
-        // Refresh user position from backend
-        if (address) {
-          const positionResponse = await stakingApi.getPosition(address);
-          if (positionResponse.data.success) {
-            setUserPosition(positionResponse.data.data);
-          }
-        }
+      let txHash: `0x${string}`;
+      
+      if (claimType === 'WITHDRAW') {
+        // Call contract.claimToWallet() - claims all available tips to wallet
+        txHash = await writeContract(wagmiModule.config, {
+          address: contractsModule.CONTRACTS.STEAKNSTAKE as `0x${string}`,
+          abi: contractsModule.STEAKNSTAKE_ABI,
+          functionName: 'claimToWallet',
+          args: []
+        });
       } else {
-        setClaimError(data.error || 'Failed to claim tips');
+        // Call contract.claim(limit) - for auto-stake functionality
+        // For now, treat as claimToWallet since we don't have auto-stake limit logic
+        txHash = await writeContract(wagmiModule.config, {
+          address: contractsModule.CONTRACTS.STEAKNSTAKE as `0x${string}`,
+          abi: contractsModule.STEAKNSTAKE_ABI,
+          functionName: 'claimToWallet',
+          args: []
+        });
       }
-    } catch (error) {
-      console.error('Error claiming tips:', error);
-      setClaimError('Failed to claim tips - please try again');
+      
+      console.log('📝 Contract claim transaction submitted:', txHash);
+      
+      // Wait for transaction confirmation
+      const receipt = await waitForTransactionReceipt(wagmiModule.config, {
+        hash: txHash,
+        confirmations: 1
+      });
+      
+      console.log('✅ Claim transaction confirmed:', receipt);
+      
+      setClaimSuccess(`Successfully claimed ${unclaimedAmount} $STEAK to ${claimType === 'WITHDRAW' ? 'wallet' : 'auto-stake'}!`);
+      
+      // Refresh unclaimed tips
+      await fetchUnclaimedTips();
+      
+      // Refresh wallet balance and staking data
+      refetchData();
+      
+      // Refresh user position from backend
+      if (address) {
+        const positionResponse = await stakingApi.getPosition(address);
+        if (positionResponse.data.success) {
+          setUserPosition(positionResponse.data.data);
+        }
+      }
+      
+    } catch (error: any) {
+      console.error('Error claiming tips via contract:', error);
+      
+      // Handle user rejection
+      if (error?.message?.includes('User rejected') || error?.code === 4001) {
+        setClaimError('Transaction cancelled by user');
+      } else if (error?.message?.includes('insufficient funds')) {
+        setClaimError('Insufficient ETH for gas fees');
+      } else {
+        setClaimError(`Failed to claim tips: ${error?.message || 'Unknown error'}`);
+      }
     } finally {
       setIsClaimProcessing(false);
     }

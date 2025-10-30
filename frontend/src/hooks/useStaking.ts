@@ -95,10 +95,14 @@ export function useStaking(farcasterUser?: any) {
       contracts: CONTRACTS
     });
     
-    // Always show approve step first so users can see their current allowance
-    // They can choose to update it or proceed to staking
+    // Check if user has sufficient allowance to proceed to staking
     if (currentStep !== 'completed') {
-      setCurrentStep('approve');
+      // If user has allowance of at least 0.1 STEAK, show stake step
+      if (allowance && allowance >= parseEther('0.1')) {
+        setCurrentStep('stake');
+      } else {
+        setCurrentStep('approve');
+      }
     }
   }, [allowance, address]);
 

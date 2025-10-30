@@ -225,7 +225,7 @@ router.post('/send', async (req, res) => {
         `INSERT INTO farcaster_tips (
           tipper_user_id, recipient_fid, recipient_username, tip_amount, 
           cast_hash, cast_url, message, status
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'ALLOCATED') RETURNING *`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'PENDING') RETURNING *`,
         [
           tipper.id,
           recipientFid,
@@ -256,7 +256,7 @@ router.post('/send', async (req, res) => {
             username: recipientUsername
           },
           castHash,
-          status: 'ALLOCATED',
+          status: 'PENDING',
           message: 'Tip sent successfully!'
         }
       });

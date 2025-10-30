@@ -69,6 +69,9 @@ export default function HomePage() {
   const [backendUserPosition, setBackendUserPosition] = useState<UserPosition | null>(null);
   const [unclaimedTips, setUnclaimedTips] = useState<any[]>([]);
   const [unclaimedAmount, setUnclaimedAmount] = useState<number>(0);
+  const [isClaimProcessing, setIsClaimProcessing] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
+  const [claimSuccess, setClaimSuccess] = useState<string | null>(null);
 
   // Direct wagmi wallet connection
   const { address, isConnected } = useAccount();
@@ -274,7 +277,7 @@ export default function HomePage() {
     }
 
     try {
-      setIsProcessing(true);
+      setIsClaimProcessing(true);
       
       // Get tip IDs from unclaimed tips
       const tipIds = unclaimedTips.map(tip => tip.tipId);
@@ -302,7 +305,7 @@ export default function HomePage() {
       const data = await response.json();
       
       if (data.success) {
-        setSuccessMessage(`Successfully claimed ${unclaimedAmount} $STEAK to ${claimType === 'WITHDRAW' ? 'wallet' : 'auto-stake'}!`);
+        setClaimSuccess(`Successfully claimed ${unclaimedAmount} $STEAK to ${claimType === 'WITHDRAW' ? 'wallet' : 'auto-stake'}!`);
         
         // Refresh unclaimed tips
         await fetchUnclaimedTips();
@@ -318,13 +321,13 @@ export default function HomePage() {
           }
         }
       } else {
-        setUserError(data.error || 'Failed to claim tips');
+        setClaimError(data.error || 'Failed to claim tips');
       }
     } catch (error) {
       console.error('Error claiming tips:', error);
-      setUserError('Failed to claim tips - please try again');
+      setClaimError('Failed to claim tips - please try again');
     } finally {
-      setIsProcessing(false);
+      setIsClaimProcessing(false);
     }
   };
 
@@ -1222,20 +1225,45 @@ export default function HomePage() {
             {unclaimedAmount > 0 && (
               <div className="bg-white rounded-xl p-6 border mb-6">
                 <h3 className="text-xl font-bold mb-4">Claim Options</h3>
-              <div className="space-y-3">
+                
+                {claimError && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+                    <p className="text-sm text-red-700">⚠️ {claimError}</p>
+                    <button 
+                      onClick={() => setClaimError(null)}
+                      className="text-red-500 hover:text-red-700 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                
+                {claimSuccess && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+                    <p className="text-sm text-green-700">✅ {claimSuccess}</p>
+                    <button 
+                      onClick={() => setClaimSuccess(null)}
+                      className="text-green-500 hover:text-green-700 text-sm"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+                
+                <div className="space-y-3">
                 <button 
                   onClick={claimFullAmount}
-                  disabled={isProcessing || unclaimedAmount === 0}
+                  disabled={isClaimProcessing || unclaimedAmount === 0}
                   className="w-full p-3 border-2 border-green-500 text-green-700 rounded-lg font-medium hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isProcessing ? '⏳ Processing...' : `💰 Claim Full Amount to Wallet (${unclaimedAmount} $STEAK)`}
+                  {isClaimProcessing ? '⏳ Processing...' : `💰 Claim Full Amount to Wallet (${unclaimedAmount} $STEAK)`}
                 </button>
                 <button 
                   onClick={claimSplit}
-                  disabled={isProcessing || unclaimedAmount === 0}
+                  disabled={isClaimProcessing || unclaimedAmount === 0}
                   className="w-full p-3 border-2 border-purple-500 text-purple-700 rounded-lg font-medium hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isProcessing ? '⏳ Processing...' : `⚖️ Split: 50% Wallet + 50% Auto-Stake (${unclaimedAmount} $STEAK)`}
+                  {isClaimProcessing ? '⏳ Processing...' : `⚖️ Split: 50% Wallet + 50% Auto-Stake (${unclaimedAmount} $STEAK)`}
                 </button>
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                   <p className="text-sm text-blue-800">

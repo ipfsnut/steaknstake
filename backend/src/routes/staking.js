@@ -698,6 +698,101 @@ router.get('/sync-allowance/:address', async (req, res) => {
   }
 });
 
+// DEBUG ENDPOINT: Analyze database corruption
+router.get('/debug/corruption-analysis', async (req, res) => {
+  try {
+    const client = await db.getClient();
+    
+    // Get raw staking_positions data
+    const stakingPositionsResult = await client.query(`
+      SELECT 
+        u.wallet_address,
+        u.farcaster_username,
+        sp.staked_amount,
+        sp.total_rewards_earned,
+        sp.staked_at,
+        sp.updated_at
+      FROM staking_positions sp
+      JOIN users u ON sp.user_id = u.id
+      WHERE sp.staked_amount > 0
+      ORDER BY sp.staked_amount DESC
+    `);
+    
+    // Get leaderboard cache data for comparison
+    const leaderboardResult = await client.query(`
+      SELECT 
+        wallet_address,
+        staked_amount,
+        rank
+      FROM leaderboard_cache
+      ORDER BY rank
+    `);
+    
+    // Calculate totals
+    const stakingPositionsTotal = stakingPositionsResult.rows.reduce((sum, row) => 
+      sum + parseFloat(row.staked_amount), 0
+    );
+    const leaderboardTotal = leaderboardResult.rows.reduce((sum, row) => 
+      sum + parseFloat(row.staked_amount), 0
+    );
+    
+    // Check for duplicates in staking_positions
+    const duplicateCheck = await client.query(`
+      SELECT 
+        u.wallet_address,
+        COUNT(*) as duplicate_count,
+        SUM(sp.staked_amount) as total_staked_for_address
+      FROM staking_positions sp
+      JOIN users u ON sp.user_id = u.id
+      WHERE sp.staked_amount > 0
+      GROUP BY u.wallet_address
+      HAVING COUNT(*) > 1
+    `);
+    
+    client.release();
+    
+    res.json({
+      success: true,
+      data: {
+        corruption_analysis: {
+          staking_positions_total: stakingPositionsTotal,
+          leaderboard_cache_total: leaderboardTotal,
+          discrepancy: stakingPositionsTotal - leaderboardTotal,
+          discrepancy_percentage: ((stakingPositionsTotal - leaderboardTotal) / leaderboardTotal * 100).toFixed(2) + '%'
+        },
+        staking_positions_records: stakingPositionsResult.rows.map(row => ({
+          wallet_address: row.wallet_address,
+          farcaster_username: row.farcaster_username,
+          staked_amount: parseFloat(row.staked_amount),
+          total_rewards_earned: parseFloat(row.total_rewards_earned || 0),
+          staked_at: row.staked_at,
+          updated_at: row.updated_at
+        })),
+        leaderboard_records: leaderboardResult.rows.map(row => ({
+          wallet_address: row.wallet_address,
+          staked_amount: parseFloat(row.staked_amount),
+          rank: parseInt(row.rank)
+        })),
+        duplicates_found: duplicateCheck.rows,
+        summary: {
+          staking_positions_count: stakingPositionsResult.rows.length,
+          leaderboard_count: leaderboardResult.rows.length,
+          duplicates_count: duplicateCheck.rows.length,
+          problem_identified: stakingPositionsTotal > leaderboardTotal * 2 ? 'YES - Major corruption detected' : 'NO - Minor discrepancy'
+        }
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error analyzing database corruption:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to analyze database corruption',
+      details: error.message
+    });
+  }
+});
+
 console.log('🔍 STAKING ROUTE: All routes defined, exporting router...');
 console.log('🔍 STAKING ROUTE: Routes registered:', router.stack?.length || 'unknown');
 
@@ -749,17 +844,24 @@ router.post('/webhook', async (req, res) => {
         user = userResult.rows[0];
       }
       
-      // Get current on-chain stake amount to ensure accuracy
+      // Get current on-chain stake amount to ensure accuracy - using same method as frontend
       const { ethers } = require('ethers');
       const provider = new ethers.JsonRpcProvider(process.env.RPC_URL || 'https://mainnet.base.org');
       const contractAddress = process.env.STEAKNSTAKE_CONTRACT_ADDRESS || '0xdA9BD5c259Ae90e99158f45f00238d1BaDb3694D';
       
+      // Use exact same ABI and method as frontend (getStakedAmount)
       const contractABI = [
-        "function stakedAmount(address) view returns (uint256)"
+        {
+          "inputs": [{"internalType": "address", "name": "user", "type": "address"}],
+          "name": "getStakedAmount",
+          "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+          "stateMutability": "view",
+          "type": "function"
+        }
       ];
       
       const contract = new ethers.Contract(contractAddress, contractABI, provider);
-      const currentStakedWei = await contract.stakedAmount(address);
+      const currentStakedWei = await contract.getStakedAmount(address);
       const currentStakedAmount = parseFloat(ethers.formatEther(currentStakedWei));
       
       logger.info('📊 Current on-chain stake:', { address, currentStakedAmount });

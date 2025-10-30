@@ -326,7 +326,7 @@ export default function HomePage() {
     }
   };
 
-  // Update all stats when contract data changes
+  // Update all stats when contract data changes - prioritizing backend API data
   useEffect(() => {
     const realTotalStaked = contractTotalStaked ? parseFloat(formatEther(contractTotalStaked)) : 0;
     const userClaimedEarnings = claimedEarnings ? parseFloat(formatEther(claimedEarnings)) : 0;
@@ -377,38 +377,48 @@ export default function HomePage() {
       userClaimedEarnings,
       contractStakedAmount
     });
-    
-    // Start with fallback staker count  
-    let totalStakers = realTotalStaked > 0 ? 1 : 0;
-    
-    // Update platform stats with initial data
-    setStakingStats({
-      totalStakers,
-      totalStaked: realTotalStaked,
-      tipsAvailable: userClaimableTips
-    });
 
-    // Only fetch stats if we don't have them cached
-    const fetchStatsIfNeeded = async () => {
+    // PRIORITY: Use backend API stats instead of contract fallbacks
+    const fetchPlatformStats = async () => {
       try {
+        console.log('📊 Fetching platform stats from backend API (primary source)...');
         const statsResponse = await stakingApi.getStats();
+        
         if (statsResponse.data.success && statsResponse.data.data) {
-          const realStakerCount = statsResponse.data.data.totalStakers || totalStakers;
-          console.log('✅ Using real staker count from backend:', realStakerCount);
-          setStakingStats(prev => ({
-            ...prev,
-            totalStakers: realStakerCount
-          }));
+          const backendStats = statsResponse.data.data;
+          console.log('✅ Using backend platform stats:', backendStats);
+          
+          // Use backend data as primary source
+          setStakingStats({
+            totalStakers: backendStats.totalStakers,
+            totalStaked: backendStats.totalStaked,
+            tipsAvailable: userClaimableTips
+          });
+          
+          console.log('📊 Platform stats updated with backend data:', {
+            totalStakers: backendStats.totalStakers,
+            totalStaked: backendStats.totalStaked,
+            tipsAvailable: userClaimableTips
+          });
+          
+          return; // Successfully used backend - skip contract fallback
         }
       } catch (error) {
-        console.log('⚠️ Failed to fetch staker count, using fallback:', totalStakers);
+        console.error('❌ Failed to fetch backend stats:', error);
       }
+      
+      // Only use contract data as fallback if backend completely fails
+      console.log('⚠️ Backend stats failed, using contract fallback');
+      const fallbackStakers = realTotalStaked > 0 ? 1 : 0;
+      setStakingStats({
+        totalStakers: fallbackStakers,
+        totalStaked: realTotalStaked,
+        tipsAvailable: userClaimableTips
+      });
     };
     
-    // Only fetch once, not on every contract update
-    if (stakingStats.totalStakers === 0) {
-      fetchStatsIfNeeded();
-    }
+    // Always fetch backend stats first
+    fetchPlatformStats();
     
     // Create leaderboard with real user if they have stakes
     const leaderboard = [];

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAccount, useReadContract } from 'wagmi';
-import { formatEther } from 'viem';
+import { formatEther, parseEther } from 'viem';
 import { useRouter } from 'next/navigation';
 import { stakingApi, tippingApi } from '@/lib/api';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
@@ -109,7 +109,16 @@ export default function HomePage() {
     }
   });
 
-  // Removed: Read user's unclaimed earnings (TipN pattern) - using backend API instead
+  // Read user's unclaimed earnings directly from smart contract
+  const { data: unclaimedEarnings, refetch: refetchUnclaimed } = useReadContract({
+    address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
+    abi: STEAKNSTAKE_ABI,
+    functionName: 'getUnclaimedEarnings',
+    args: address ? [address, parseEther('1000000')] : undefined, // High limit to get all unclaimed
+    query: {
+      enabled: !!address
+    }
+  });
 
   // Read total rewards distributed globally (TipN pattern)
   const { data: totalRewardsDistributed } = useReadContract({
@@ -184,41 +193,21 @@ export default function HomePage() {
     console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp, 'user:', user);
   }, [isReady, isMiniApp, user]);
 
-  // Fetch unclaimed tips for the user
-  // Cache for unclaimed tips data
-  const [tipsCache, setTipsCache] = useState<{[fid: number]: {amount: number, tips: any[]}}>();
-  
-  const fetchUnclaimedTips = async () => {
-    if (!address || !user?.fid) return;
-    
-    // Check cache first
-    const cached = tipsCache?.[user.fid];
-    if (cached) {
-      console.log('💾 Using cached unclaimed tips for FID:', user.fid);
-      setUnclaimedAmount(cached.amount);
-      setUnclaimedTips(cached.tips);
-      return;
+  // Update unclaimed amount from smart contract data
+  useEffect(() => {
+    if (unclaimedEarnings) {
+      const unclaimedAmountSteak = parseFloat(formatEther(unclaimedEarnings));
+      setUnclaimedAmount(unclaimedAmountSteak);
+      console.log('💰 Contract unclaimed earnings:', unclaimedAmountSteak, '$STEAK');
+    } else {
+      setUnclaimedAmount(0);
     }
-    
-    try {
-      console.log('🔍 Fetching fresh unclaimed tips...', { address, fid: user.fid });
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/farcaster/user/${user.fid}`);
-      if (response.ok) {
-        const data = await response.json();
-        const unclaimedAmount = data.data?.stats?.unclaimedAmount || 0;
-        const recentTips = data.data?.recentTips?.filter((tip: any) => !tip.isClaimed) || [];
-        
-        setUnclaimedAmount(unclaimedAmount);
-        setUnclaimedTips(recentTips);
-        
-        // Cache the result
-        setTipsCache(prev => ({...prev, [user.fid]: {amount: unclaimedAmount, tips: recentTips}}));
-        
-        console.log('📨 Unclaimed tips fetched:', { unclaimedAmount, count: recentTips.length });
-      }
-    } catch (error) {
-      console.error('❌ Error fetching unclaimed tips:', error);
+  }, [unclaimedEarnings]);
+  
+  // Legacy function for compatibility - now just refreshes contract data
+  const fetchUnclaimedTips = async () => {
+    if (refetchUnclaimed) {
+      await refetchUnclaimed();
     }
   };
 
@@ -325,8 +314,8 @@ export default function HomePage() {
       
       setClaimSuccess(`Successfully claimed ${unclaimedAmount} $STEAK to ${claimType === 'WITHDRAW' ? 'wallet' : 'auto-stake'}!`);
       
-      // Refresh unclaimed tips
-      await fetchUnclaimedTips();
+      // Refresh unclaimed tips from contract
+      await refetchUnclaimed();
       
       // Refresh wallet balance and staking data
       refetchData();
@@ -457,8 +446,7 @@ export default function HomePage() {
     
     fetchBackendData();
     
-    // Fetch unclaimed tips if user has Farcaster FID
-    fetchUnclaimedTips();
+    // Contract data will auto-update via useReadContract
     
     // Debug logging
     console.log('📊 Contract data update:', {
@@ -642,7 +630,7 @@ export default function HomePage() {
       
       // Refresh unclaimed tips
       if (user?.fid) {
-        await fetchUnclaimedTips();
+        await refetchUnclaimed();
       }
       
       console.log('🔄 Data refreshed successfully');

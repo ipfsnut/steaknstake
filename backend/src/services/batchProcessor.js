@@ -64,7 +64,7 @@ async function processPendingTips() {
         recipient_wallet_address = u.wallet_address,
         tipper_wallet_address = tu.wallet_address
       FROM users u, users tu
-      WHERE farcaster_tips.status = 'PENDING_WALLET'
+      WHERE farcaster_tips.status = 'PENDING'
       AND u.farcaster_fid = farcaster_tips.recipient_fid
       AND tu.id = farcaster_tips.tipper_user_id
       AND u.wallet_address IS NOT NULL
@@ -241,7 +241,6 @@ async function allocateDailyTipAllowances() {
           daily_allowance_start = daily_allowance_start + $1,
           daily_tips_sent = 0,
           last_allowance_reset = CURRENT_DATE,
-          total_rewards_earned = total_rewards_earned + $1,
           last_reward_calculated = NOW(),
           updated_at = NOW()
         WHERE user_id = $2

@@ -63,11 +63,10 @@ async function calculateRewards(userId) {
     const timeElapsedDays = timeDiff / secondsPerDay;
     const newRewards = parseFloat(position.staked_amount) * dailyRate * timeElapsedDays;
     
-    // Update position with new rewards
+    // Update position with new rewards (tip allowances, not total_rewards_earned)
     const updatedPosition = await client.query(`
       UPDATE staking_positions 
       SET 
-        total_rewards_earned = total_rewards_earned + $1,
         available_tip_balance = available_tip_balance + $1,
         last_reward_calculated = $2,
         updated_at = $2
@@ -79,7 +78,7 @@ async function calculateRewards(userId) {
     
     return {
       availableTipBalance: parseFloat(updatedPosition.rows[0].available_tip_balance),
-      totalRewardsEarned: parseFloat(updatedPosition.rows[0].total_rewards_earned),
+      totalRewardsEarned: parseFloat(updatedPosition.rows[0].total_rewards_earned), // This will be calculated separately from tips
       newRewards: newRewards
     };
     

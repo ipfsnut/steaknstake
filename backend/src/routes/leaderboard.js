@@ -20,17 +20,21 @@ router.get('/', async (req, res) => {
     
     const client = await db.getClient();
     
-    // Get real staking data with user information
+    // Get real staking data with user information and calculate actual rewards from tips
     const leaderboardResult = await client.query(`
       SELECT 
         u.farcaster_username,
         u.wallet_address,
         sp.staked_amount,
-        sp.total_rewards_earned,
         sp.staked_at,
         sp.daily_allowance_start,
         sp.daily_tips_sent,
         (sp.daily_allowance_start - sp.daily_tips_sent) as available_tips,
+        COALESCE(
+          (SELECT SUM(ft.tip_amount) 
+           FROM farcaster_tips ft 
+           WHERE ft.recipient_fid = u.farcaster_fid), 0
+        ) as actual_rewards_earned,
         RANK() OVER (ORDER BY sp.staked_amount DESC) as rank
       FROM staking_positions sp
       JOIN users u ON sp.user_id = u.id
@@ -47,7 +51,7 @@ router.get('/', async (req, res) => {
       address: row.wallet_address,
       stakedAmount: parseFloat(row.staked_amount).toLocaleString(),
       stakedAmountRaw: parseFloat(row.staked_amount),
-      totalRewards: parseFloat(row.total_rewards_earned).toLocaleString(),
+      totalRewards: parseFloat(row.actual_rewards_earned).toLocaleString(),
       availableTips: parseFloat(row.available_tips).toLocaleString(),
       stakingDate: row.staked_at,
       tipsSent: parseFloat(row.daily_tips_sent).toLocaleString()
@@ -97,8 +101,12 @@ router.get('/top/:count', async (req, res) => {
         u.farcaster_username,
         u.wallet_address,
         sp.staked_amount,
-        sp.total_rewards_earned,
         sp.staked_at,
+        COALESCE(
+          (SELECT SUM(ft.tip_amount) 
+           FROM farcaster_tips ft 
+           WHERE ft.recipient_fid = u.farcaster_fid), 0
+        ) as actual_rewards_earned,
         RANK() OVER (ORDER BY sp.staked_amount DESC) as rank
       FROM staking_positions sp
       JOIN users u ON sp.user_id = u.id
@@ -115,7 +123,7 @@ router.get('/top/:count', async (req, res) => {
       address: row.wallet_address,
       stakedAmount: parseFloat(row.staked_amount).toLocaleString(),
       stakedAmountRaw: parseFloat(row.staked_amount),
-      totalRewards: parseFloat(row.total_rewards_earned).toLocaleString(),
+      totalRewards: parseFloat(row.actual_rewards_earned).toLocaleString(),
       stakingDate: row.staked_at
     }));
     
@@ -146,8 +154,12 @@ router.get('/player/:address', async (req, res) => {
           u.farcaster_username,
           u.wallet_address,
           sp.staked_amount,
-          sp.total_rewards_earned,
           sp.staked_at,
+          COALESCE(
+            (SELECT SUM(ft.tip_amount) 
+             FROM farcaster_tips ft 
+             WHERE ft.recipient_fid = u.farcaster_fid), 0
+          ) as actual_rewards_earned,
           RANK() OVER (ORDER BY sp.staked_amount DESC) as rank
         FROM staking_positions sp
         JOIN users u ON sp.user_id = u.id
@@ -175,7 +187,7 @@ router.get('/player/:address', async (req, res) => {
         address: row.wallet_address,
         stakedAmount: parseFloat(row.staked_amount).toLocaleString(),
         stakedAmountRaw: parseFloat(row.staked_amount),
-        totalRewards: parseFloat(row.total_rewards_earned).toLocaleString(),
+        totalRewards: parseFloat(row.actual_rewards_earned).toLocaleString(),
         stakingDate: row.staked_at
       };
     }
@@ -290,6 +302,39 @@ router.get('/decay-info', (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch decay information'
+    });
+  }
+});
+
+// POST /api/leaderboard/reset-rewards - Reset incorrect total_rewards_earned values
+router.post('/reset-rewards', async (req, res) => {
+  try {
+    logger.info('🔄 Resetting incorrect total_rewards_earned values');
+    
+    const client = await db.getClient();
+    
+    // Reset all total_rewards_earned to 0 (they were incorrectly inflated)
+    const resetResult = await client.query(`
+      UPDATE staking_positions 
+      SET total_rewards_earned = 0
+      WHERE total_rewards_earned > 0
+    `);
+    
+    client.release();
+    
+    logger.info(`✅ Reset total_rewards_earned for ${resetResult.rowCount} positions`);
+    
+    res.json({
+      success: true,
+      message: `Reset total_rewards_earned for ${resetResult.rowCount} positions`,
+      note: 'total_rewards_earned now calculated dynamically from actual tips received'
+    });
+    
+  } catch (error) {
+    console.error('Error resetting rewards:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to reset rewards'
     });
   }
 });

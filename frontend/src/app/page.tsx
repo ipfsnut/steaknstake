@@ -8,7 +8,7 @@ import { stakingApi, tippingApi } from '@/lib/api';
 import { useWalletConnection } from '@/hooks/useWalletConnection';
 import { useFarcasterMiniApp } from '@/hooks/useFarcasterMiniApp';
 import { useStaking } from '@/hooks/useStaking';
-import { CONTRACTS, STEAKNSTAKE_ABI } from '@/lib/contracts';
+import { CONTRACTS, STEAKNSTAKE_ABI, ERC20_ABI } from '@/lib/contracts';
 
 interface StakingStats {
   totalStakers: number;
@@ -109,12 +109,13 @@ export default function HomePage() {
     }
   });
 
-  // Read user's unclaimed earnings directly from smart contract
-  const { data: unclaimedEarnings, refetch: refetchUnclaimed } = useReadContract({
-    address: CONTRACTS.STEAKNSTAKE as `0x${string}`,
-    abi: STEAKNSTAKE_ABI,
-    functionName: 'getUnclaimedEarnings',
-    args: address ? [address, parseEther('1000000')] : undefined, // High limit to get all unclaimed
+  // Read user's claimable tips from STEAK token allowances (protocol wallet → user)
+  const PROTOCOL_WALLET = '0xD31C0C3BdDAcc482Aa5fE64d27cDDBaB72864733';
+  const { data: claimableAllowance, refetch: refetchClaimable } = useReadContract({
+    address: CONTRACTS.STEAK_TOKEN as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: 'allowance',
+    args: address ? [PROTOCOL_WALLET as `0x${string}`, address] : undefined,
     query: {
       enabled: !!address
     }
@@ -193,21 +194,21 @@ export default function HomePage() {
     console.log('🎯 Page state - isReady:', isReady, 'isMiniApp:', isMiniApp, 'user:', user);
   }, [isReady, isMiniApp, user]);
 
-  // Update unclaimed amount from smart contract data
+  // Update claimable amount from STEAK token allowances
   useEffect(() => {
-    if (unclaimedEarnings) {
-      const unclaimedAmountSteak = parseFloat(formatEther(unclaimedEarnings));
-      setUnclaimedAmount(unclaimedAmountSteak);
-      console.log('💰 Contract unclaimed earnings:', unclaimedAmountSteak, '$STEAK');
+    if (claimableAllowance) {
+      const claimableAmountSteak = parseFloat(formatEther(claimableAllowance));
+      setUnclaimedAmount(claimableAmountSteak);
+      console.log('💰 Claimable STEAK allowance:', claimableAmountSteak, '$STEAK');
     } else {
       setUnclaimedAmount(0);
     }
-  }, [unclaimedEarnings]);
+  }, [claimableAllowance]);
   
-  // Legacy function for compatibility - now just refreshes contract data
+  // Refresh claimable allowance from STEAK token
   const fetchUnclaimedTips = async () => {
-    if (refetchUnclaimed) {
-      await refetchUnclaimed();
+    if (refetchClaimable) {
+      await refetchClaimable();
     }
   };
 
@@ -258,16 +259,11 @@ export default function HomePage() {
     }
   };
 
-  // Claim tips function - Direct contract call to claimToWallet
+  // Claim tips function - Direct transferFrom call on STEAK token
   const claimTips = async () => {
     // Enhanced validation
     if (!address) {
       setClaimError('Please connect your wallet first');
-      return;
-    }
-    
-    if (!user?.fid) {
-      setClaimError('Farcaster account required for claiming');
       return;
     }
     
@@ -281,26 +277,31 @@ export default function HomePage() {
       setClaimError(null);
       setClaimSuccess(null);
       
-      console.log('🎯 Claiming tips via contract:', { 
-        unclaimedAmount,
-        address,
-        contractFunction: 'claimToWallet'
+      console.log('🎯 Claiming tips via STEAK token transferFrom:', { 
+        claimableAmount: unclaimedAmount,
+        userAddress: address,
+        protocolWallet: PROTOCOL_WALLET,
+        tokenFunction: 'transferFrom'
       });
 
       // Import wagmi functions
       const { writeContract, waitForTransactionReceipt } = await import('wagmi/actions');
       const contractsModule = await import('@/lib/contracts');
       const wagmiModule = await import('@/lib/wagmi');
+      const { parseEther } = await import('viem');
       
-      // Call contract.claimToWallet() - claims all available tips to wallet
+      // Convert amount to Wei for the contract call
+      const claimAmountWei = parseEther(unclaimedAmount.toString());
+      
+      // Call STEAK token transferFrom() - transfers approved amount from protocol wallet to user
       const txHash = await writeContract(wagmiModule.config, {
-        address: contractsModule.CONTRACTS.STEAKNSTAKE as `0x${string}`,
-        abi: contractsModule.STEAKNSTAKE_ABI,
-        functionName: 'claimToWallet',
-        args: []
+        address: contractsModule.CONTRACTS.STEAK_TOKEN as `0x${string}`,
+        abi: contractsModule.ERC20_ABI,
+        functionName: 'transferFrom',
+        args: [PROTOCOL_WALLET as `0x${string}`, address, claimAmountWei]
       });
       
-      console.log('📝 Contract claim transaction submitted:', txHash);
+      console.log('📝 STEAK token transfer transaction submitted:', txHash);
       
       // Immediately update UI optimistically
       const claimedAmount = unclaimedAmount;
@@ -320,10 +321,10 @@ export default function HomePage() {
       // Update success message
       setClaimSuccess(`🎉 Successfully claimed ${claimedAmount} $STEAK to your wallet!`);
       
-      // Refresh data from contract and backend
+      // Refresh data from STEAK token allowances and backend
       setTimeout(async () => {
         try {
-          await refetchUnclaimed();
+          await refetchClaimable();
           refetchData();
           
           // Refresh user position from backend
@@ -339,10 +340,10 @@ export default function HomePage() {
       }, 2000);
       
     } catch (error: any) {
-      console.error('Error claiming tips via contract:', error);
+      console.error('Error claiming tips via STEAK token:', error);
       
       // Revert optimistic UI update
-      await refetchUnclaimed();
+      await refetchClaimable();
       
       // Enhanced error handling
       if (error?.message?.includes('User rejected') || error?.code === 4001) {
@@ -350,7 +351,7 @@ export default function HomePage() {
       } else if (error?.message?.includes('insufficient funds') || error?.message?.includes('gas')) {
         setClaimError('❌ Insufficient ETH for gas fees. You need a small amount of ETH on Base to pay for the transaction.');
       } else if (error?.message?.includes('execution reverted')) {
-        setClaimError('❌ Transaction failed. You may not have any claimable tips or the contract may be paused.');
+        setClaimError('❌ Transaction failed. You may not have sufficient allowance or the protocol wallet may be empty.');
       } else if (error?.message?.includes('network') || error?.message?.includes('connection')) {
         setClaimError('❌ Network error. Please check your connection and try again.');
       } else if (error?.message?.includes('timeout')) {
@@ -646,7 +647,7 @@ export default function HomePage() {
       
       // Refresh unclaimed tips
       if (user?.fid) {
-        await refetchUnclaimed();
+        await refetchClaimable();
       }
       
       console.log('🔄 Data refreshed successfully');
@@ -1236,7 +1237,7 @@ export default function HomePage() {
                 <h3 className="text-xl font-bold">📨 Your Tips to Claim</h3>
                 <button 
                   onClick={async () => {
-                    await refetchUnclaimed();
+                    await refetchClaimable();
                     await fetchUserPositionFresh();
                   }}
                   className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1 rounded-md transition-colors"

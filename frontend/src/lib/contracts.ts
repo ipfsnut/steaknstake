@@ -5,7 +5,7 @@ export const CONTRACTS = {
   STEAKNSTAKE: process.env.NEXT_PUBLIC_STEAKNSTAKE_CONTRACT_ADDRESS || '0xdA9BD5c259Ae90e99158f45f00238d1BaDb3694D', // v3.0.0-tipn-tipping secure contract
 } as const;
 
-// ERC20 ABI for approvals
+// ERC20 ABI for approvals, allowances, and transfers
 export const ERC20_ABI = [
   {
     "inputs": [
@@ -32,6 +32,17 @@ export const ERC20_ABI = [
     "name": "balanceOf",
     "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {"internalType": "address", "name": "from", "type": "address"},
+      {"internalType": "address", "name": "to", "type": "address"},
+      {"internalType": "uint256", "name": "amount", "type": "uint256"}
+    ],
+    "name": "transferFrom",
+    "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ] as const;

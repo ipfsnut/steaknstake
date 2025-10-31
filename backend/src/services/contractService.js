@@ -349,10 +349,71 @@ async function callContractClaimTip(recipientAddress, tipAmountSteak, castHash) 
   }
 }
 
+// Approve STEAK token allowance for a user to claim tips via transferFrom
+async function approveSteakTokenAllowance(recipientAddress, tipAmountSteak) {
+  try {
+    logger.info(`💰 Approving STEAK token allowance: ${tipAmountSteak} STEAK for ${recipientAddress}`);
+    
+    // Convert STEAK amount to wei (18 decimals)
+    const tipAmountWei = ethers.parseEther(tipAmountSteak.toString());
+    
+    logger.info(`📊 STEAK token approve call:`, {
+      tokenAddress: CONTRACTS.STEAK_TOKEN,
+      spender: recipientAddress,
+      amount: tipAmountSteak,
+      amountWei: tipAmountWei.toString()
+    });
+    
+    // Get STEAK token contract instance
+    const signer = getSigner();
+    const steakToken = new ethers.Contract(CONTRACTS.STEAK_TOKEN, ERC20_ABI, signer);
+    
+    // Estimate gas first
+    const gasEstimate = await steakToken.approve.estimateGas(recipientAddress, tipAmountWei);
+    logger.info(`⛽ Estimated gas: ${gasEstimate.toString()}`);
+    
+    // Call approve function on STEAK token
+    const tx = await steakToken.approve(recipientAddress, tipAmountWei, {
+      gasLimit: gasEstimate + BigInt(50000), // Add 50k gas buffer
+    });
+    
+    logger.info(`📝 STEAK approve transaction submitted: ${tx.hash}`);
+    
+    // Wait for confirmation
+    const receipt = await tx.wait();
+    
+    logger.info(`✅ STEAK approve transaction confirmed:`, {
+      hash: tx.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString(),
+      status: receipt.status
+    });
+    
+    return {
+      success: true,
+      transactionHash: tx.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString()
+    };
+    
+  } catch (error) {
+    logger.error('❌ STEAK token approval failed:', error);
+    
+    if (error.code === 'INSUFFICIENT_FUNDS') {
+      throw new Error('Insufficient ETH for gas fees in protocol wallet');
+    } else if (error.reason) {
+      throw new Error(`STEAK token error: ${error.reason}`);
+    } else {
+      throw new Error(`STEAK approval failed: ${error.message}`);
+    }
+  }
+}
+
 module.exports = {
   callContractSplit,
   callFundContract,
   callContractClaimTip,
+  approveSteakTokenAllowance,
   approveContractSpending,
   testContractConnection
 };

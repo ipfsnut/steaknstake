@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const winston = require('winston');
 const db = require('./database');
-const { callContractSplit, callContractClaimTip } = require('./contractService');
+const { callContractSplit, approveSteakTokenAllowance } = require('./contractService');
 const { ethers } = require('ethers');
 
 const logger = winston.createLogger({
@@ -121,20 +121,20 @@ async function processPendingTips() {
       await ensureContractAllowance(totalTipAmount);
     }
     
-    // Signal claimable tip amounts to contract for each recipient
+    // Approve tip amounts on STEAK token for each recipient
     for (const recipientWallet in tipsByRecipient) {
       const recipientData = tipsByRecipient[recipientWallet];
       
       for (const tip of recipientData.tips) {
         try {
-          // Call contract.claimTip(recipient, amount, tipHash) to make tips claimable
-          logger.info(`📞 Signaling claimable tip to contract: ${tip.tip_amount} STEAK for ${tip.recipient_username} (${tip.cast_hash})`);
+          // Approve recipient to claim tip amount from protocol wallet via STEAK token
+          logger.info(`💰 Approving STEAK token allowance: ${tip.tip_amount} STEAK for ${tip.recipient_username} (${recipientWallet})`);
           
-          // Call contract to make tip claimable
-          await callContractClaimTip(recipientWallet, tip.tip_amount, tip.cast_hash);
+          // Call STEAK token approve() from protocol wallet to recipient
+          await approveSteakTokenAllowance(recipientWallet, tip.tip_amount);
           
         } catch (error) {
-          logger.error(`❌ Failed to signal tip to contract:`, error);
+          logger.error(`❌ Failed to approve STEAK token allowance:`, error);
         }
       }
     }

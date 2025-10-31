@@ -188,6 +188,20 @@ async function handleCastCreated(castData) {
       return;
     }
     
+    // Check for batch processing commands first
+    const batchCommands = [
+      /@steaknstake\s+(process|batch|trigger)(\s+tips?)?/i,  // "@steaknstake process", "@steaknstake batch", "@steaknstake trigger tips"
+      /@steaknstake\s+(process\s+tips|batch\s+tips)/i       // "@steaknstake process tips", "@steaknstake batch tips"
+    ];
+    
+    for (const command of batchCommands) {
+      if (text.match(command)) {
+        logger.info('🔧 BATCH COMMAND DETECTED:', { text, command: command.toString() });
+        await handleBatchCommand(author, hash);
+        return;
+      }
+    }
+    
     // REQUIRED: Bot must be tagged for tip detection
     const tipPatterns = [
       /@steaknstake\s+(\d+(?:\.\d+)?)\s*\$STEAK/i  // "@steaknstake 100 $STEAK"
@@ -725,5 +739,41 @@ router.post('/webhook-test', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Handle batch processing commands from Farcaster
+async function handleBatchCommand(author, castHash) {
+  const { triggerBatchProcessing } = require('../services/batchProcessor');
+  
+  try {
+    logger.info(`🔧 Processing batch command from @${author.username} (FID: ${author.fid})`);
+    
+    // Trigger the batch processing
+    logger.info('🚀 Triggering batch processor...');
+    await triggerBatchProcessing();
+    
+    // Reply with confirmation
+    const confirmationText = `🔥 Batch processing triggered! 
+    
+All pending tips are now being processed for claiming. Recipients with connected wallets will receive STEAK token allowances within moments.
+
+Check your tips at steak.epicdylan.com 🥩`;
+
+    await replyToCast(castHash, confirmationText);
+    
+    logger.info(`✅ Batch processing completed and confirmation sent to @${author.username}`);
+    
+  } catch (error) {
+    logger.error('❌ Batch command failed:', error);
+    
+    // Reply with error message
+    const errorText = `⚠️ Batch processing failed. Please try again or contact support.`;
+    
+    try {
+      await replyToCast(castHash, errorText);
+    } catch (replyError) {
+      logger.error('❌ Failed to send error reply:', replyError);
+    }
+  }
+}
 
 module.exports = router;

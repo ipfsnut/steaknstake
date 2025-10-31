@@ -13,6 +13,9 @@ const logger = winston.createLogger({
   transports: [new winston.transports.Console()]
 });
 
+// Execution lock to prevent concurrent batch processing
+let isProcessing = false;
+
 // Batch process pending tips and allocate next day's allowances at midnight UTC
 function startBatchProcessor() {
   logger.info('🤖 Starting batch processor for daily tip cycle');
@@ -30,6 +33,14 @@ function startBatchProcessor() {
 
 // Complete daily tip cycle: process yesterday's tips + allocate today's allowances
 async function runDailyTipCycle() {
+  // Check if already processing
+  if (isProcessing) {
+    logger.warn('⚠️ Batch processing already in progress, skipping execution');
+    return { success: false, message: 'Batch processing already in progress' };
+  }
+  
+  // Set processing lock
+  isProcessing = true;
   logger.info('🔄 Starting complete daily tip cycle');
   
   try {
@@ -42,10 +53,15 @@ async function runDailyTipCycle() {
     await allocateDailyTipAllowances();
     
     logger.info('✅ Daily tip cycle completed successfully');
+    return { success: true, message: 'Daily tip cycle completed successfully' };
     
   } catch (error) {
     logger.error('❌ Daily tip cycle failed:', error);
     throw error;
+  } finally {
+    // Always release the lock
+    isProcessing = false;
+    logger.info('🔓 Batch processing lock released');
   }
 }
 

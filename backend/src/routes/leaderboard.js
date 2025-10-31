@@ -339,4 +339,41 @@ router.post('/reset-rewards', async (req, res) => {
   }
 });
 
+// POST /api/leaderboard/fix-daily-tips - Recalculate daily_tips_sent from actual tips today
+router.post('/fix-daily-tips', async (req, res) => {
+  try {
+    logger.info('🔄 Recalculating daily_tips_sent from actual tips today');
+    
+    const client = await db.getClient();
+    
+    // Calculate actual tips sent today for each user
+    const fixResult = await client.query(`
+      UPDATE staking_positions sp
+      SET daily_tips_sent = COALESCE(
+        (SELECT SUM(ft.tip_amount)
+         FROM farcaster_tips ft
+         WHERE ft.tipper_user_id = sp.user_id
+         AND DATE(ft.created_at) = CURRENT_DATE), 0
+      )
+    `);
+    
+    client.release();
+    
+    logger.info(`✅ Fixed daily_tips_sent for ${fixResult.rowCount} positions`);
+    
+    res.json({
+      success: true,
+      message: `Recalculated daily_tips_sent for ${fixResult.rowCount} positions`,
+      note: 'daily_tips_sent now matches actual tips sent today'
+    });
+    
+  } catch (error) {
+    console.error('Error fixing daily tips:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fix daily tips counter'
+    });
+  }
+});
+
 module.exports = router;

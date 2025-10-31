@@ -758,7 +758,7 @@ All pending tips are now being processed for claiming. Recipients with connected
 
 Check your tips at steak.epicdylan.com 🥩`;
 
-    await replyToCast(castHash, confirmationText);
+    await postToFarcaster(confirmationText, castHash);
     
     logger.info(`✅ Batch processing completed and confirmation sent to @${author.username}`);
     
@@ -769,7 +769,7 @@ Check your tips at steak.epicdylan.com 🥩`;
     const errorText = `⚠️ Batch processing failed. Please try again or contact support.`;
     
     try {
-      await replyToCast(castHash, errorText);
+      await postToFarcaster(errorText, castHash);
     } catch (replyError) {
       logger.error('❌ Failed to send error reply:', replyError);
     }

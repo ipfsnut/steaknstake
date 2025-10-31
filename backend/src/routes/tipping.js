@@ -135,9 +135,16 @@ router.post('/send', async (req, res) => {
             }
           });
           
-          if (userResponse.data?.users?.[0]?.verifications?.[0]) {
-            recipientWalletAddress = userResponse.data.users[0].verifications[0];
-            logger.info('Found wallet address for recipient:', { recipientFid, recipientWalletAddress });
+          const user = userResponse.data?.users?.[0];
+          if (user?.verifications?.length > 0) {
+            // Use primary address (verified_addresses.eth_addresses[0]) if available, otherwise fall back to verifications[0]
+            recipientWalletAddress = user.verified_addresses?.eth_addresses?.[0] || user.verifications[0];
+            logger.info('Found wallet address for recipient:', { 
+              recipientFid, 
+              recipientWalletAddress,
+              isPrimary: !!user.verified_addresses?.eth_addresses?.[0],
+              totalVerifications: user.verifications.length 
+            });
           } else {
             logger.info('No verified wallet found for recipient FID:', recipientFid);
           }

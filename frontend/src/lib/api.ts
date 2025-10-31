@@ -133,6 +133,25 @@ export const farcasterApi = {
   },
 };
 
+// Leaderboard API
+export const leaderboardApi = {
+  getLeaderboard: (limit?: number, filter?: string, sort?: string) => {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    if (filter) params.append('filter', filter);
+    if (sort) params.append('sort', sort);
+    return api.get(`/api/leaderboard${params.toString() ? `?${params}` : ''}`);
+  },
+  getTopPlayers: (count: number) => api.get(`/api/leaderboard/top/${count}`),
+  getPlayerPosition: (address: string) => api.get(`/api/leaderboard/player/${address}`),
+  getHistory: (days?: number) => {
+    const params = new URLSearchParams();
+    if (days) params.append('days', days.toString());
+    return api.get(`/api/leaderboard/history${params.toString() ? `?${params}` : ''}`);
+  },
+  getDecayInfo: () => api.get('/api/leaderboard/decay-info'),
+};
+
 // Health API
 export const healthApi = {
   check: () => api.get('/api/health'),

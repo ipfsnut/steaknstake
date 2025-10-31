@@ -5,7 +5,7 @@ import { useReadContract } from 'wagmi';
 import { formatEther } from 'viem';
 import { useRouter } from 'next/navigation';
 import { CONTRACTS, STEAKNSTAKE_ABI } from '@/lib/contracts';
-import { stakingApi, farcasterApi } from '@/lib/api';
+import { stakingApi, farcasterApi, leaderboardApi } from '@/lib/api';
 
 interface EffectiveStake {
   effectiveAmount: number;
@@ -73,7 +73,7 @@ export default function LeaderboardPage() {
         try {
           console.log('🔍 Calling leaderboard and stats APIs...');
           const [leaderboardResponse, statsResponse] = await Promise.all([
-            stakingApi.getLeaderboard(100), // Get top 100 stakers
+            leaderboardApi.getLeaderboard(100), // Get top 100 stakers from new endpoint
             stakingApi.getStats()
           ]);
           
@@ -86,62 +86,28 @@ export default function LeaderboardPage() {
             // Transform backend data to match frontend interface
             const transformedPlayers: Player[] = leaderboardResponse.data.data.leaderboard.map((player: any) => ({
               rank: player.rank,
-              address: player.walletAddress,
-              ensName: player.farcasterUsername || undefined,
-              stakedAmount: player.stakedAmount.toLocaleString(),
-              stakedAmountRaw: player.stakedAmount,
+              address: player.address,
+              ensName: player.username || undefined,
+              stakedAmount: player.stakedAmount,
+              stakedAmountRaw: player.stakedAmountRaw,
               lockExpiry: '', // Backend doesn't provide lock expiry yet
-              stakeDate: player.stakedAt,
-              totalEarned: player.totalRewardsEarned.toLocaleString(),
+              stakeDate: player.stakingDate,
+              totalEarned: player.totalRewards,
               isTopTen: player.rank <= 10,
-              farcasterFid: player.farcasterFid,
-              farcasterUsername: player.farcasterUsername
+              farcasterFid: undefined, // Need to get this from backend
+              farcasterUsername: player.username
             }));
             
             setPlayers(transformedPlayers);
             
-            // Fetch profile pictures for players with FIDs
-            const playersWithFids = transformedPlayers.filter(p => p.farcasterFid);
-            if (playersWithFids.length > 0) {
-              try {
-                const fids = playersWithFids.map(p => p.farcasterFid!);
-                console.log('📸 Fetching profile pictures for FIDs:', fids);
-                const profilesResponse = await farcasterApi.getProfiles(fids);
-                
-                if (profilesResponse.data.success) {
-                  const profiles = profilesResponse.data.data.profiles;
-                  console.log('✅ Received profile data:', profiles);
-                  
-                  // Update players with avatar URLs
-                  setPlayers(currentPlayers => 
-                    currentPlayers.map(player => {
-                      if (player.farcasterFid) {
-                        const profile = profiles.find((p: any) => p.fid === player.farcasterFid);
-                        if (profile) {
-                          return {
-                            ...player,
-                            avatarUrl: profile.avatarUrl,
-                            ensName: profile.displayName || player.ensName // Use display name if available
-                          };
-                        }
-                      }
-                      return player;
-                    })
-                  );
-                }
-              } catch (profileError) {
-                console.log('⚠️ Failed to fetch profile pictures:', profileError);
-              }
-            }
-            
-            // Set stats from separate endpoint
-            if (statsResponse.data.success && statsResponse.data.data) {
-              const statsData = statsResponse.data.data;
+            // Set stats from leaderboard response
+            if (leaderboardResponse.data.data?.stats) {
+              const statsData = leaderboardResponse.data.data.stats;
               setStats({
-                totalPlayers: statsData.totalStakers,
-                activeStakers: statsData.totalStakers,
-                earningPlayers: statsData.totalStakers,
-                totalStaked: statsData.totalStaked.toLocaleString()
+                totalPlayers: statsData.totalPlayers,
+                activeStakers: statsData.activeStakers,
+                earningPlayers: statsData.totalPlayers, // For now, assume all stakers are earning
+                totalStaked: statsData.totalStaked
               });
             }
             

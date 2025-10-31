@@ -1,82 +1,71 @@
 const express = require('express');
 const router = express.Router();
-const { calculateLeaderboardWithDecay, calculateEffectiveStake, getDecaySystemInfo } = require('../utils/decay-calculator');
+const db = require('../services/database');
+const winston = require('winston');
 
-// Mock leaderboard data with varied stake ages for decay demonstration
-const generateMockLeaderboard = () => {
-  const players = [];
-  const baseNames = ['steaklord', 'stakequeen', 'cowhero', 'meatking', 'steakboss'];
-  
-  // Create players with different stake ages to show decay effects
-  const stakeAges = [2, 8, 15, 22, 29, 36, 12, 5, 18, 25, 10, 32, 3, 14, 28]; // Days ago
-  
-  for (let i = 1; i <= 15; i++) {
-    const daysAgo = stakeAges[i-1];
-    players.push({
-      address: `0x${i.toString().padStart(4, '0')}${'0'.repeat(36)}`,
-      ensName: i <= 5 ? `${baseNames[i-1]}.eth` : null,
-      stakedAmount: (125000 - (i-1) * 7500).toLocaleString(),
-      stakedAmountRaw: 125000 - (i-1) * 7500,
-      lockExpiry: new Date(Date.now() + (2 + i) * 24 * 60 * 60 * 1000).toISOString(),
-      stakeDate: new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString(),
-      totalEarned: `${((1.35 - (i-1) * 0.1) * (5 + i)).toFixed(2)} ETH`
-    });
-  }
-  
-  // Apply decay calculations and re-rank
-  return calculateLeaderboardWithDecay(players);
-};
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [new winston.transports.Console()]
+});
 
-// Mock distribution history
-const generateMockDistributions = () => {
-  const distributions = [];
-  for (let i = 0; i < 10; i++) {
-    distributions.push({
-      date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString(),
-      rank: Math.floor(Math.random() * 10) + 1,
-      reward: `${(Math.random() * 1.5 + 0.3).toFixed(2)} ETH`,
-      address: `0x${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}...${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-      totalDistributed: `${(Math.random() * 2 + 8).toFixed(2)} ETH`
-    });
-  }
-  return distributions.sort((a, b) => new Date(b.date) - new Date(a.date));
-};
-
-// GET /api/leaderboard - Get full leaderboard
-router.get('/', (req, res) => {
+// GET /api/leaderboard - Get real staking leaderboard
+router.get('/', async (req, res) => {
   try {
-    const { filter, sort, limit } = req.query;
-    let leaderboard = generateMockLeaderboard();
+    logger.info('📊 Fetching leaderboard data');
+    const { limit = 50, filter, sort } = req.query;
     
-    // Apply filters
-    if (filter === 'top10') {
-      leaderboard = leaderboard.filter(p => p.rank <= 10);
-    } else if (filter === 'active') {
-      leaderboard = leaderboard.filter(p => new Date(p.lockExpiry) > new Date());
-    } else if (filter === 'earning') {
-      leaderboard = leaderboard.filter(p => p.isTopTen);
-    }
+    const client = await db.getClient();
     
-    // Apply sorting
-    if (sort === 'amount') {
-      leaderboard.sort((a, b) => b.stakedAmountRaw - a.stakedAmountRaw);
-    } else if (sort === 'earnings') {
-      leaderboard.sort((a, b) => parseFloat(b.totalEarned) - parseFloat(a.totalEarned));
-    } else if (sort === 'recent') {
-      leaderboard.sort((a, b) => new Date(b.stakeDate) - new Date(a.stakeDate));
-    }
-    // Default is rank order (already sorted)
+    // Get real staking data with user information
+    const leaderboardResult = await client.query(`
+      SELECT 
+        u.farcaster_username,
+        u.wallet_address,
+        sp.staked_amount,
+        sp.total_rewards_earned,
+        sp.staked_at,
+        sp.daily_allowance_start,
+        sp.daily_tips_sent,
+        (sp.daily_allowance_start - sp.daily_tips_sent) as available_tips,
+        RANK() OVER (ORDER BY sp.staked_amount DESC) as rank
+      FROM staking_positions sp
+      JOIN users u ON sp.user_id = u.id
+      WHERE sp.staked_amount > 0
+      ORDER BY sp.staked_amount DESC
+      LIMIT $1
+    `, [parseInt(limit)]);
     
-    // Apply limit
-    if (limit) {
-      leaderboard = leaderboard.slice(0, parseInt(limit));
-    }
+    client.release();
+    
+    const leaderboard = leaderboardResult.rows.map(row => ({
+      rank: parseInt(row.rank),
+      username: row.farcaster_username || 'Unknown',
+      address: row.wallet_address,
+      stakedAmount: parseFloat(row.staked_amount).toLocaleString(),
+      stakedAmountRaw: parseFloat(row.staked_amount),
+      totalRewards: parseFloat(row.total_rewards_earned).toLocaleString(),
+      availableTips: parseFloat(row.available_tips).toLocaleString(),
+      stakingDate: row.staked_at,
+      tipsSent: parseFloat(row.daily_tips_sent).toLocaleString()
+    }));
+    
+    // Calculate stats from actual data
+    const statsResult = await client.query(`
+      SELECT 
+        COUNT(*) as total_players,
+        COALESCE(SUM(sp.staked_amount), 0) as total_staked
+      FROM staking_positions sp
+      WHERE sp.staked_amount > 0
+    `);
     
     const stats = {
-      totalPlayers: 15,
-      activeStakers: leaderboard.filter(p => new Date(p.lockExpiry) > new Date()).length,
-      earningPlayers: leaderboard.filter(p => p.isTopTen).length,
-      totalStaked: leaderboard.reduce((sum, p) => sum + p.stakedAmountRaw, 0).toLocaleString()
+      totalPlayers: parseInt(statsResult.rows[0].total_players),
+      activeStakers: leaderboard.length,
+      totalStaked: parseFloat(statsResult.rows[0].total_staked).toLocaleString()
     };
     
     res.json({
@@ -97,10 +86,38 @@ router.get('/', (req, res) => {
 });
 
 // GET /api/leaderboard/top/:count - Get top N players
-router.get('/top/:count', (req, res) => {
+router.get('/top/:count', async (req, res) => {
   try {
-    const count = Math.min(parseInt(req.params.count) || 10, 15);
-    const leaderboard = generateMockLeaderboard().slice(0, count);
+    const count = Math.min(parseInt(req.params.count) || 10, 50);
+    
+    const client = await db.getClient();
+    
+    const leaderboardResult = await client.query(`
+      SELECT 
+        u.farcaster_username,
+        u.wallet_address,
+        sp.staked_amount,
+        sp.total_rewards_earned,
+        sp.staked_at,
+        RANK() OVER (ORDER BY sp.staked_amount DESC) as rank
+      FROM staking_positions sp
+      JOIN users u ON sp.user_id = u.id
+      WHERE sp.staked_amount > 0
+      ORDER BY sp.staked_amount DESC
+      LIMIT $1
+    `, [count]);
+    
+    client.release();
+    
+    const leaderboard = leaderboardResult.rows.map(row => ({
+      rank: parseInt(row.rank),
+      username: row.farcaster_username || 'Unknown',
+      address: row.wallet_address,
+      stakedAmount: parseFloat(row.staked_amount).toLocaleString(),
+      stakedAmountRaw: parseFloat(row.staked_amount),
+      totalRewards: parseFloat(row.total_rewards_earned).toLocaleString(),
+      stakingDate: row.staked_at
+    }));
     
     res.json({
       success: true,
@@ -116,33 +133,77 @@ router.get('/top/:count', (req, res) => {
 });
 
 // GET /api/leaderboard/player/:address - Get specific player position
-router.get('/player/:address', (req, res) => {
+router.get('/player/:address', async (req, res) => {
   try {
     const { address } = req.params;
-    const leaderboard = generateMockLeaderboard();
     
-    // Mock player lookup (in real implementation, query by address)
-    const player = leaderboard.find(p => 
-      p.address.toLowerCase() === address.toLowerCase()
-    ) || {
-      rank: null,
-      address: address,
-      stakedAmount: '0',
-      stakedAmountRaw: 0,
-      lockExpiry: null,
-      stakeDate: null,
-      dailyReward: '0 ETH',
-      totalEarned: '0 ETH',
-      isTopTen: false
-    };
+    const client = await db.getClient();
     
-    // Add context about nearby players if ranked
+    // Get player's position
+    const playerResult = await client.query(`
+      WITH ranked_players AS (
+        SELECT 
+          u.farcaster_username,
+          u.wallet_address,
+          sp.staked_amount,
+          sp.total_rewards_earned,
+          sp.staked_at,
+          RANK() OVER (ORDER BY sp.staked_amount DESC) as rank
+        FROM staking_positions sp
+        JOIN users u ON sp.user_id = u.id
+        WHERE sp.staked_amount > 0
+      )
+      SELECT * FROM ranked_players
+      WHERE LOWER(wallet_address) = LOWER($1)
+    `, [address]);
+    
+    let player;
+    if (playerResult.rows.length === 0) {
+      player = {
+        rank: null,
+        address: address,
+        stakedAmount: '0',
+        stakedAmountRaw: 0,
+        totalRewards: '0',
+        stakingDate: null
+      };
+    } else {
+      const row = playerResult.rows[0];
+      player = {
+        rank: parseInt(row.rank),
+        username: row.farcaster_username || 'Unknown',
+        address: row.wallet_address,
+        stakedAmount: parseFloat(row.staked_amount).toLocaleString(),
+        stakedAmountRaw: parseFloat(row.staked_amount),
+        totalRewards: parseFloat(row.total_rewards_earned).toLocaleString(),
+        stakingDate: row.staked_at
+      };
+    }
+    
+    // Get nearby players if ranked
     let context = null;
     if (player.rank) {
-      const above = leaderboard.find(p => p.rank === player.rank - 1);
-      const below = leaderboard.find(p => p.rank === player.rank + 1);
+      const contextResult = await client.query(`
+        WITH ranked_players AS (
+          SELECT 
+            u.farcaster_username,
+            u.wallet_address,
+            sp.staked_amount,
+            RANK() OVER (ORDER BY sp.staked_amount DESC) as rank
+          FROM staking_positions sp
+          JOIN users u ON sp.user_id = u.id
+          WHERE sp.staked_amount > 0
+        )
+        SELECT * FROM ranked_players
+        WHERE rank IN ($1, $2)
+      `, [player.rank - 1, player.rank + 1]);
+      
+      const above = contextResult.rows.find(p => parseInt(p.rank) === player.rank - 1);
+      const below = contextResult.rows.find(p => parseInt(p.rank) === player.rank + 1);
       context = { above, below };
     }
+    
+    client.release();
     
     res.json({
       success: true,
@@ -151,7 +212,7 @@ router.get('/player/:address', (req, res) => {
         context,
         needToClimb: player.rank ? player.rank - 1 : 'Need to stake',
         stakeDifference: player.rank && player.rank > 1 ? 
-          leaderboard[0].stakedAmountRaw - player.stakedAmountRaw : 0
+          (contextResult.rows.find(p => parseInt(p.rank) === 1)?.staked_amount || 0) - player.stakedAmountRaw : 0
       }
     });
   } catch (error) {
@@ -164,21 +225,43 @@ router.get('/player/:address', (req, res) => {
 });
 
 // GET /api/leaderboard/history - Get recent distribution history
-router.get('/history', (req, res) => {
+router.get('/history', async (req, res) => {
   try {
     const { days = 7 } = req.query;
-    const distributions = generateMockDistributions().slice(0, parseInt(days));
+    
+    const client = await db.getClient();
+    
+    const historyResult = await client.query(`
+      SELECT 
+        calculation_date,
+        total_rewards_distributed,
+        total_staked,
+        daily_reward_rate
+      FROM reward_calculations
+      WHERE calculation_date >= CURRENT_DATE - INTERVAL '${parseInt(days)} days'
+      ORDER BY calculation_date DESC
+    `);
+    
+    client.release();
+    
+    const distributions = historyResult.rows.map(row => ({
+      date: row.calculation_date,
+      totalDistributed: parseFloat(row.total_rewards_distributed).toFixed(2) + ' STEAK',
+      totalStaked: parseFloat(row.total_staked).toFixed(2) + ' STEAK',
+      rewardRate: (parseFloat(row.daily_reward_rate) * 100).toFixed(3) + '%'
+    }));
+    
+    const totalDistributed = distributions.reduce((sum, d) => 
+      sum + parseFloat(d.totalDistributed.replace(' STEAK', '')), 0
+    );
     
     res.json({
       success: true,
       data: {
         distributions,
-        totalDistributed: distributions.reduce((sum, d) => 
-          sum + parseFloat(d.totalDistributed), 0
-        ).toFixed(2) + ' ETH',
-        averageDaily: (distributions.reduce((sum, d) => 
-          sum + parseFloat(d.totalDistributed), 0
-        ) / distributions.length).toFixed(2) + ' ETH',
+        totalDistributed: totalDistributed.toFixed(2) + ' STEAK',
+        averageDaily: distributions.length > 0 ? 
+          (totalDistributed / distributions.length).toFixed(2) + ' STEAK' : '0 STEAK',
         period: `Last ${days} days`
       }
     });
@@ -194,7 +277,10 @@ router.get('/history', (req, res) => {
 // GET /api/leaderboard/decay-info - Get decay system information
 router.get('/decay-info', (req, res) => {
   try {
-    const decayInfo = getDecaySystemInfo();
+    const decayInfo = {
+      enabled: false,
+      message: 'Decay system not currently implemented in SteakNStake'
+    };
     res.json({
       success: true,
       data: decayInfo

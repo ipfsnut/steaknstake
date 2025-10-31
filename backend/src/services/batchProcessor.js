@@ -323,6 +323,32 @@ Tip allowances are now available for claiming! 🥩`;
   }
 }
 
+// Process tips only (safe to call anytime, no allowance allocation)
+async function processTipsOnly() {
+  // Check if already processing
+  if (isProcessing) {
+    logger.warn('⚠️ Tip processing already in progress, skipping execution');
+    return { success: false, message: 'Tip processing already in progress' };
+  }
+  
+  // Set processing lock
+  isProcessing = true;
+  logger.info('🔧 Processing pending tips only (no allowance allocation)');
+  
+  try {
+    await processPendingTips();
+    logger.info('✅ Tip processing completed successfully');
+    return { success: true, message: 'Tips processed successfully' };
+  } catch (error) {
+    logger.error('❌ Tip processing failed:', error);
+    throw error;
+  } finally {
+    // Always release the lock
+    isProcessing = false;
+    logger.info('🔓 Tip processing lock released');
+  }
+}
+
 // Manual trigger for testing (can be called via API endpoint)
 async function triggerBatchProcessing() {
   logger.info('🔧 Manual batch processing triggered');
@@ -458,6 +484,7 @@ async function getTotalOutstandingAllowances(client) {
 module.exports = {
   startBatchProcessor,
   triggerBatchProcessing,
+  processTipsOnly,
   processPendingTips,
   testContractSplit,
   runDailyTipCycle,

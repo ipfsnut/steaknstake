@@ -306,35 +306,42 @@ router.get('/decay-info', (req, res) => {
   }
 });
 
-// POST /api/leaderboard/reset-rewards - Reset incorrect total_rewards_earned values
-router.post('/reset-rewards', async (req, res) => {
+// POST /api/leaderboard/restore-rewards - Restore total_rewards_earned from actual tips received
+router.post('/restore-rewards', async (req, res) => {
   try {
-    logger.info('🔄 Resetting incorrect total_rewards_earned values');
+    logger.info('🔄 Restoring total_rewards_earned from actual tips received');
     
     const client = await db.getClient();
     
-    // Reset all total_rewards_earned to 0 (they were incorrectly inflated)
-    const resetResult = await client.query(`
-      UPDATE staking_positions 
-      SET total_rewards_earned = 0
-      WHERE total_rewards_earned > 0
+    // Update total_rewards_earned to match actual tips received
+    const restoreResult = await client.query(`
+      UPDATE staking_positions sp
+      SET total_rewards_earned = COALESCE(
+        (SELECT SUM(ft.tip_amount)
+         FROM farcaster_tips ft
+         WHERE ft.recipient_fid = (
+           SELECT u.farcaster_fid 
+           FROM users u 
+           WHERE u.id = sp.user_id
+         )), 0
+      )
     `);
     
     client.release();
     
-    logger.info(`✅ Reset total_rewards_earned for ${resetResult.rowCount} positions`);
+    logger.info(`✅ Restored total_rewards_earned for ${restoreResult.rowCount} positions`);
     
     res.json({
       success: true,
-      message: `Reset total_rewards_earned for ${resetResult.rowCount} positions`,
-      note: 'total_rewards_earned now calculated dynamically from actual tips received'
+      message: `Restored total_rewards_earned for ${restoreResult.rowCount} positions`,
+      note: 'total_rewards_earned now matches actual tips received from farcaster_tips table'
     });
     
   } catch (error) {
-    console.error('Error resetting rewards:', error);
+    console.error('Error restoring rewards:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to reset rewards'
+      error: 'Failed to restore rewards'
     });
   }
 });

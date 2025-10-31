@@ -56,7 +56,7 @@ const { startBatchProcessor } = require('./services/batchProcessor');
 // Import routes with error handling
 console.log('🔍 INDEX: About to import routes...');
 
-let stakingRoutes, stakingMinimalRoutes, tippingRoutes, userRoutes, farcasterRoutes, debugRoutes, apiDebugRoutes;
+let stakingRoutes, stakingMinimalRoutes, tippingRoutes, userRoutes, farcasterRoutes, debugRoutes, apiDebugRoutes, leaderboardRoutes;
 
 try {
   console.log('🔍 INDEX: Importing staking routes...');
@@ -81,6 +81,7 @@ try {
   farcasterRoutes = require('./routes/farcaster');
   debugRoutes = require('./routes/debug');
   apiDebugRoutes = require('./routes/api-debug');
+  leaderboardRoutes = require('./routes/leaderboard');
   console.log('✅ INDEX: Other routes imported successfully');
 } catch (error) {
   console.error('❌ INDEX: Failed to import other routes:', error);
@@ -141,6 +142,7 @@ if (tippingRoutes) {
 }
 if (userRoutes) app.use('/api/users', userRoutes);
 if (farcasterRoutes) app.use('/api/farcaster', farcasterRoutes);
+if (leaderboardRoutes) app.use('/api/leaderboard', leaderboardRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

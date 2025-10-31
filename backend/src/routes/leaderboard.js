@@ -211,8 +211,8 @@ router.get('/player/:address', async (req, res) => {
         player,
         context,
         needToClimb: player.rank ? player.rank - 1 : 'Need to stake',
-        stakeDifference: player.rank && player.rank > 1 ? 
-          (contextResult.rows.find(p => parseInt(p.rank) === 1)?.staked_amount || 0) - player.stakedAmountRaw : 0
+        stakeDifference: player.rank && player.rank > 1 && context?.above ? 
+          parseFloat(context.above.staked_amount) - player.stakedAmountRaw : 0
       }
     });
   } catch (error) {

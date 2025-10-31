@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://steaknstake-backend.onrender.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://happy-determination-production.up.railway.app';
 
 if (!process.env.NEXT_PUBLIC_API_URL) {
   console.warn('⚠️ NEXT_PUBLIC_API_URL not set, using fallback:', API_BASE_URL);

@@ -13,7 +13,7 @@
     "buttonTitle": "🥩 Start Staking",
     "splashImageUrl": "https://steak.epicdylan.com/SteakNStake.png",
     "splashBackgroundColor": "#000000",
-    "webhookUrl": "https://steaknstake-backend.onrender.com/api/farcaster/webhook",
+    "webhookUrl": "https://happy-determination-production.up.railway.app/api/farcaster/webhook",
     "subtitle": "Stake STEAK; tip STEAK; grow.",
     "description": "Stake $STEAK tokens, earn rewards, and tip your favorite Farcaster creators with daily tip allowances.",
     "primaryCategory": "social",

@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   distDir: 'out',
   generateBuildId: () => 'build',
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://steaknstake-backend.onrender.com'
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://happy-determination-production.up.railway.app'
   },
   async headers() {
     return [

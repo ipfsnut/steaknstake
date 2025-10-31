@@ -258,22 +258,33 @@ export default function HomePage() {
     }
   };
 
-  // Claim tips functions - Direct contract calls
-  const claimTips = async (claimType: 'WITHDRAW' | 'STAKE') => {
-    if (!address || !user?.fid || unclaimedAmount === 0) {
-      console.error('Missing required data for claiming');
+  // Claim tips function - Direct contract call to claimToWallet
+  const claimTips = async () => {
+    // Enhanced validation
+    if (!address) {
+      setClaimError('Please connect your wallet first');
+      return;
+    }
+    
+    if (!user?.fid) {
+      setClaimError('Farcaster account required for claiming');
+      return;
+    }
+    
+    if (unclaimedAmount === 0) {
+      setClaimError('No tips available to claim');
       return;
     }
 
     try {
       setIsClaimProcessing(true);
       setClaimError(null);
+      setClaimSuccess(null);
       
       console.log('🎯 Claiming tips via contract:', { 
-        claimType, 
         unclaimedAmount,
         address,
-        contractFunction: claimType === 'WITHDRAW' ? 'claimToWallet' : 'claim'
+        contractFunction: 'claimToWallet'
       });
 
       // Import wagmi functions
@@ -281,28 +292,22 @@ export default function HomePage() {
       const contractsModule = await import('@/lib/contracts');
       const wagmiModule = await import('@/lib/wagmi');
       
-      let txHash: `0x${string}`;
-      
-      if (claimType === 'WITHDRAW') {
-        // Call contract.claimToWallet() - claims all available tips to wallet
-        txHash = await writeContract(wagmiModule.config, {
-          address: contractsModule.CONTRACTS.STEAKNSTAKE as `0x${string}`,
-          abi: contractsModule.STEAKNSTAKE_ABI,
-          functionName: 'claimToWallet',
-          args: []
-        });
-      } else {
-        // Call contract.claim(limit) - for auto-stake functionality
-        // For now, treat as claimToWallet since we don't have auto-stake limit logic
-        txHash = await writeContract(wagmiModule.config, {
-          address: contractsModule.CONTRACTS.STEAKNSTAKE as `0x${string}`,
-          abi: contractsModule.STEAKNSTAKE_ABI,
-          functionName: 'claimToWallet',
-          args: []
-        });
-      }
+      // Call contract.claimToWallet() - claims all available tips to wallet
+      const txHash = await writeContract(wagmiModule.config, {
+        address: contractsModule.CONTRACTS.STEAKNSTAKE as `0x${string}`,
+        abi: contractsModule.STEAKNSTAKE_ABI,
+        functionName: 'claimToWallet',
+        args: []
+      });
       
       console.log('📝 Contract claim transaction submitted:', txHash);
+      
+      // Immediately update UI optimistically
+      const claimedAmount = unclaimedAmount;
+      setUnclaimedAmount(0);
+      
+      // Show transaction pending message
+      setClaimSuccess(`Transaction submitted! Claiming ${claimedAmount} $STEAK...`);
       
       // Wait for transaction confirmation
       const receipt = await waitForTransactionReceipt(wagmiModule.config, {
@@ -312,40 +317,51 @@ export default function HomePage() {
       
       console.log('✅ Claim transaction confirmed:', receipt);
       
-      setClaimSuccess(`Successfully claimed ${unclaimedAmount} $STEAK to ${claimType === 'WITHDRAW' ? 'wallet' : 'auto-stake'}!`);
+      // Update success message
+      setClaimSuccess(`🎉 Successfully claimed ${claimedAmount} $STEAK to your wallet!`);
       
-      // Refresh unclaimed tips from contract
-      await refetchUnclaimed();
-      
-      // Refresh wallet balance and staking data
-      refetchData();
-      
-      // Refresh user position from backend
-      if (address) {
-        const positionResponse = await stakingApi.getPosition(address);
-        if (positionResponse.data.success) {
-          setUserPosition(positionResponse.data.data);
+      // Refresh data from contract and backend
+      setTimeout(async () => {
+        try {
+          await refetchUnclaimed();
+          refetchData();
+          
+          // Refresh user position from backend
+          if (address) {
+            const positionResponse = await stakingApi.getPosition(address);
+            if (positionResponse.data.success) {
+              setUserPosition(positionResponse.data.data);
+            }
+          }
+        } catch (refreshError) {
+          console.warn('Failed to refresh data after claim:', refreshError);
         }
-      }
+      }, 2000);
       
     } catch (error: any) {
       console.error('Error claiming tips via contract:', error);
       
-      // Handle user rejection
+      // Revert optimistic UI update
+      await refetchUnclaimed();
+      
+      // Enhanced error handling
       if (error?.message?.includes('User rejected') || error?.code === 4001) {
-        setClaimError('Transaction cancelled by user');
-      } else if (error?.message?.includes('insufficient funds')) {
-        setClaimError('Insufficient ETH for gas fees');
+        setClaimError('❌ Transaction cancelled by user');
+      } else if (error?.message?.includes('insufficient funds') || error?.message?.includes('gas')) {
+        setClaimError('❌ Insufficient ETH for gas fees. You need a small amount of ETH on Base to pay for the transaction.');
+      } else if (error?.message?.includes('execution reverted')) {
+        setClaimError('❌ Transaction failed. You may not have any claimable tips or the contract may be paused.');
+      } else if (error?.message?.includes('network') || error?.message?.includes('connection')) {
+        setClaimError('❌ Network error. Please check your connection and try again.');
+      } else if (error?.message?.includes('timeout')) {
+        setClaimError('❌ Transaction timed out. It may still be processing - check your wallet.');
       } else {
-        setClaimError(`Failed to claim tips: ${error?.message || 'Unknown error'}`);
+        setClaimError(`❌ Claim failed: ${error?.message || 'Unknown error. Please try again.'}`);
       }
     } finally {
       setIsClaimProcessing(false);
     }
   };
-
-  const claimFullAmount = () => claimTips('WITHDRAW');
-  const claimSplit = () => claimTips('STAKE'); // For now, treat split as auto-stake
 
   // Initialize with contract data only (no backend dependency)
   useEffect(() => {
@@ -1208,35 +1224,60 @@ export default function HomePage() {
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-6">
                 <h3 className="font-bold text-orange-800 mb-2">About Claiming</h3>
                 <div className="text-sm text-orange-700 space-y-1">
-                  <p>• Claim tips you've received from others</p>
-                  <p>• <strong>Claim Full:</strong> 100% goes to your wallet</p>
-                  <p>• <strong>Split 50/50:</strong> 50% to wallet, 50% auto-staked</p>
-                  <p>• Auto-staked tokens start earning rewards immediately</p>
+                  <p>• Claim tips you've received from others directly to your wallet</p>
+                  <p>• You can then manually stake any amount you want through the Stake section</p>
+                  <p>• All tips are paid out in $STEAK tokens</p>
                 </div>
               </div>
             )}
             
             <div className="bg-white rounded-xl p-6 border mb-6">
-              <h3 className="text-xl font-bold mb-4">📨 Pending Tips</h3>
-              <div className="text-center py-8">
-                <div className="text-4xl mb-4">💝</div>
-                <p className="text-gray-500">
-                  {walletAddress || (isMiniApp && user) ? 'No pending tips' : 'Connect wallet to see pending tips'}
-                </p>
-                {!walletAddress && !isMiniApp && (
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold">📨 Your Tips to Claim</h3>
+                <button 
+                  onClick={async () => {
+                    await refetchUnclaimed();
+                    await fetchUserPositionFresh();
+                  }}
+                  className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 py-1 rounded-md transition-colors"
+                  title="Refresh claim balance"
+                >
+                  🔄 Refresh
+                </button>
+              </div>
+              
+              {(walletAddress || (isMiniApp && user)) ? (
+                <div className="text-center py-4">
+                  <div className="text-6xl font-bold text-green-600 mb-2">
+                    {unclaimedAmount.toFixed(2)}
+                  </div>
+                  <div className="text-lg text-gray-600 mb-4">$STEAK available to claim</div>
+                  
+                  {unclaimedAmount === 0 && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <div className="text-4xl mb-2">💝</div>
+                      <p className="text-gray-500">No tips to claim yet</p>
+                      <p className="text-sm text-gray-400 mt-1">Tips from others will appear here</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <div className="text-4xl mb-4">💝</div>
+                  <p className="text-gray-500 mb-4">Connect wallet to see pending tips</p>
                   <button 
                     onClick={connectWallet}
-                    className="mt-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg"
                   >
                     Connect Wallet
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             {unclaimedAmount > 0 && (
               <div className="bg-white rounded-xl p-6 border mb-6">
-                <h3 className="text-xl font-bold mb-4">Claim Options</h3>
+                <h3 className="text-xl font-bold mb-4">Claim Your Tips</h3>
                 
                 {claimError && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
@@ -1262,27 +1303,21 @@ export default function HomePage() {
                   </div>
                 )}
                 
-                <div className="space-y-3">
-                <button 
-                  onClick={claimFullAmount}
-                  disabled={isClaimProcessing || unclaimedAmount === 0}
-                  className="w-full p-3 border-2 border-green-500 text-green-700 rounded-lg font-medium hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isClaimProcessing ? '⏳ Processing...' : `💰 Claim Full Amount to Wallet (${unclaimedAmount} $STEAK)`}
-                </button>
-                <button 
-                  onClick={claimSplit}
-                  disabled={isClaimProcessing || unclaimedAmount === 0}
-                  className="w-full p-3 border-2 border-purple-500 text-purple-700 rounded-lg font-medium hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isClaimProcessing ? '⏳ Processing...' : `⚖️ Split: 50% Wallet + 50% Auto-Stake (${unclaimedAmount} $STEAK)`}
-                </button>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-sm text-blue-800">
-                    💡 <strong>Smart tip:</strong> Split option lets you claim some and start earning rewards on the rest immediately!
-                  </p>
+                <div className="space-y-4">
+                  <button 
+                    onClick={claimTips}
+                    disabled={isClaimProcessing || unclaimedAmount === 0}
+                    className="w-full p-4 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  >
+                    {isClaimProcessing ? '⏳ Processing...' : `💰 Claim ${unclaimedAmount} $STEAK to Wallet`}
+                  </button>
+                  
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      💡 <strong>Tip:</strong> After claiming, you can stake any amount through the Stake section to start earning rewards!
+                    </p>
+                  </div>
                 </div>
-              </div>
               </div>
             )}
           </div>
